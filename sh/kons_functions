@@ -188,7 +188,7 @@ esac
 
 function Filter()
 {
-# List of parameters 
+# List of parameters
 # Where to search profiles
 PATH_SEARCH=$1
 # Filter
@@ -205,7 +205,7 @@ find $PATH_SEARCH -name \*.profile -exec grep "$FILTER" '{}' \; -print -o -name 
 do
    FILE="$(echo "$LINE" | sed 's/\.dat$/.profile/g')"
    FILEDAT="$(echo "$LINE" | sed 's/\.profile$/.dat/g')"
-   if [ -f "$FILEDAT" ] 
+   if [ -f "$FILEDAT" ]
    then
       DAT="$(cat "$FILEDAT")"
    fi
@@ -228,7 +228,7 @@ do
 
             GetInfoFromCmd "$FILE"
             # Result are in $SERVER_NAME $USER_NAME $SSH_COMMAND $SSH_COMMAND_OPTS - COMMAND should not be empty.
-            if [ "$COMMAND" = "" ] 
+            if [ "$COMMAND" = "" ]
             then
                continue
             fi
@@ -254,13 +254,13 @@ do
            esac
          fi
       else
-         if [ -f "$FILEDAT" ] 
+         if [ -f "$FILEDAT" ]
          then
             SSH_CONNECT="$(dat_extract "USER_NAME" "$DAT")@$(dat_extract "SERVER" "$DAT")"
          else
             GetInfoFromCmd "$FILE"
             # Result are in $SERVER_NAME $USER_NAME $SSH_COMMAND $SSH_COMMAND_OPTS - COMMAND should not be empty.
-            if [ "$COMMAND" = "" ] 
+            if [ "$COMMAND" = "" ]
             then
                continue
             fi
@@ -368,7 +368,7 @@ function dat_servers_list()
        echo
     fi
  else
-    cat "$CONNECTION_LIST" 
+    cat "$CONNECTION_LIST"
  fi
 
 }
@@ -473,12 +473,12 @@ function CreateProfile ()
  fi
  if [ "$PROF" = "True" ]
  then
-    if [ ! -f $PROF_PATH/template.profile.tpl ] 
+    if [ ! -f $KONSOLE_PROFILES_TEMPLATES/template.profile.tpl ]
     then
-       echo "Warning! $PROF_PATH/template.profile.tpl does not exist!"
+       echo "Warning! $KONSOLE_PROFILES_TEMPLATES/template.profile.tpl does not exist!"
     else
        sed 's/NAME/'"$APP_NAME: $SERVER ($CATEG,$ROLE,$LOCATION)"'/g
-            s/CMD/'"$CMD $INT_CMD_OPTS $CMD_OPTS $USER_NAME@$SERVER"'/g' $PROF_PATH/template.profile.tpl > "$PROF_PATH/$PROFILE"
+            s/CMD/'"$CMD $INT_CMD_OPTS $CMD_OPTS $USER_NAME@$SERVER"'/g' $KONSOLE_PROFILES_TEMPLATES/template.profile.tpl > "$PROF_PATH/$PROFILE"
        printf "$PROFILE $MESS. "
     fi
  fi
@@ -522,9 +522,9 @@ function check_cmds_opts()
     if [ "$(echo "$CMD_OPTS" | grep -e "-M [0-9][0-9]*")" = "" ]
     then
        INT_CMD_OPTS="$INT_CMD_OPTS -M0"
-    fi      
+    fi
  fi
- 
+
  if [ "$(echo "$CMD_OPTS" | grep -e "-X")" != "" ]
  then
     CMD_OPTS="$(echo "$CMD_OPTS" | sed 's/-X//g')"
@@ -563,7 +563,7 @@ function CSV_extract()
     echo "Please provide a CSV filename."
     exit
  fi
- if [ ! -w "$(dirname "$CSV_FILE")" ] 
+ if [ ! -w "$(dirname "$CSV_FILE")" ]
  then
     echo "Unable to write in $(dirname "$CSV_FILE"). Exiting."
     exit 1
@@ -617,14 +617,14 @@ function dat_edit()
 
  # Generation of list of profiles
  OUTPUT_FORMAT='%40s|%8s|%30s|%15s|%5s|%5s|%5s|%12s|%15s|%7s|%s'
- echo "Do NOT update this column|app-code|server|user|categ|role|locat|connect tool|flags|status|comment" |  awk -F'|' ' 
+ echo "Do NOT update this column|app-code|server|user|categ|role|locat|connect tool|flags|status|comment" |  awk -F'|' '
 { printf "'"$OUTPUT_FORMAT"'\n",$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11 }' > ~/.profiles.lst
  echo "------------------------------------------------------------------------------------------------------------">> ~/.profiles.lst
  if [ "$EDITOR" != "" ]
  then
     # Need to provide a readable output
     awk -F'|' ' { printf "'"$OUTPUT_FORMAT"'\n",$12,$1,$8,$9,$3,$4,$5,$10,$13,$6,$7 }' ~/.profiles.dat >> ~/.profiles.lst
-    echo "You are going to edit some profiles information. 
+    echo "You are going to edit some profiles information.
 Do not update the first column. All other column can be updated. The two first lines are simply ignored.
 Trailing or leading spaces in column are ignored.
 Do not remove lines.
@@ -674,7 +674,7 @@ function Update(sOld,sNew)
  return(sOld)
 }
 
-{ 
+{
  if (FNR>1)
     {
      iCount=0
@@ -706,7 +706,7 @@ function Update(sOld,sNew)
  if [ "$PROFILES_UPD" = "True" ]
  then
     UpdateAllProfiles ~/.profiles.dat True True "$FILTER_PATH"
-    rm -f ~/.profiles.dat 
+    rm -f ~/.profiles.dat
  fi
 }
 
@@ -791,7 +791,7 @@ Executing : $(cat $1.new)
  if [ "$NO_OUTPUT" != "True" ] && [ "$SHORT" != True ]
  then
     cat $SERVER.status >> $SERVER.started
-    echo "---------------------------------------------------------" >> $SERVER.started 
+    echo "---------------------------------------------------------" >> $SERVER.started
  fi
  touch $i.DONE
 }
@@ -808,19 +808,19 @@ function ssh_show()
     echo "Unable to change dir to: $TMPDIR not accessible. Execution canceled."
     exit 1
  fi
- 
+
  ALL_COUNT=$(ls *.new | wc -l)
  DONE_COUNT=$(ls *.DONE 2>/dev/null | wc -l)
  while [ $ALL_COUNT -ne $DONE_COUNT ]
  do
-   if [ "$SILENT" != True ] 
+   if [ "$SILENT" != True ]
    then
       printf "\r[K$DONE_COUNT / $ALL_COUNT done. Waiting..."
    fi
    sleep 1
    DONE_COUNT=$(ls *.DONE 2>/dev/null | wc -l)
  done
- if [ "$SILENT" != True ] 
+ if [ "$SILENT" != True ]
  then
     printf "\r[KCalls result: $SAVE_LOG\n"
  fi

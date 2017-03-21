@@ -13,25 +13,27 @@ fi
 . ~/bin/kons_functions
 # Use function SetValue from common functions.
 
+KONSOLE_PROFILES_TEMPLATES=~/.config/kssh/templates
+
 if [ -f ~/.config/kssh/config.sh ]
 then
     source ~/.config/kssh/config.sh
 fi
 
-if [ "$KONSOLE_PROFILES" = "" ] && [ -d ~/.local/share/konsole/ ]
+if [ "$KONSOLE_PROFILES" = "" ] && [ -d $HOME/.local/share/konsole/ ]
 then
    echo "Detected KDE4 konsole profiles..."
-   KONSOLE_PROFILES=~/.local/share/konsole/
+   KONSOLE_PROFILES=.local/share/konsole/
 fi
-if [ "$KONSOLE_PROFILES" = "" ] && [ -d ~/.kde/share/apps/konsole ]
+if [ "$KONSOLE_PROFILES" = "" ] && [ -d $HOME/.kde/share/apps/konsole ]
 then
   echo "Detected KDE3 konsole profiles..."
-  KONSOLE_PROFILES=~/.kde/share/apps/konsole/
+  KONSOLE_PROFILES=.kde/share/apps/konsole/
 fi
 
-if [ ! -d $KONSOLE_PROFILES ]
+if [ ! -d $HOME/$KONSOLE_PROFILES ]
 then
-   echo "Unable to find out konsole profile. You must install konsole and run it once to create profiles"
+   echo "Unable to find out konsole profile KONSOLE_PROFILES (in '$HOME' / '$KONSOLE_PROFILES'). You must install konsole and run it once to create profiles"
    exit 1
 fi
 
@@ -250,7 +252,7 @@ Extra parameters:
 function collection_mgt()
 {
 
- COLLECTIONS_PATH=$KONSOLE_PROFILES
+ COLLECTIONS_PATH=$HOME/$KONSOLE_PROFILES
  while [ $# -gt 0 ]
  do
     case "p$1" in
@@ -260,10 +262,10 @@ function collection_mgt()
        then
           PWD_SAV="$(pwd)"
           TAR_FILE="$(basename "$1")"
-          cp $1 $KONSOLE_PROFILES
+          cp $1 $HOME/$KONSOLE_PROFILES
           if [ $? -eq 0 ]
           then
-             cd $KONSOLE_PROFILES
+             cd $HOME/$KONSOLE_PROFILES
              tar -xvzf "$TAR_FILE"
              echo "Package $1 imported."
              rm -f  "$TAR_FILE"
@@ -284,10 +286,10 @@ function collection_mgt()
           TAR_PATH="$(dirname "$1")"
           TAR_FILE="$(basename "$1").kscz"
           FILTER="$2"
-          cd $KONSOLE_PROFILES
+          cd $HOME/$KONSOLE_PROFILES
           eval "tar -cvzf '$TAR_FILE' $FILTER.ksc"
           cd "$PWD_SAV"
-          mv $KONSOLE_PROFILES"$TAR_FILE" "$TAR_PATH"
+          mv $HOME/$KONSOLE_PROFILES"$TAR_FILE" "$TAR_PATH"
           echo "Package $1.kscz exported."
           exit
        else
@@ -475,7 +477,7 @@ Right now, all following session are queriable:
 
 Press Enter to continue and get the complete list. Press Control-C to interrupt."
    read
-   cat $KONSOLE_PROFILES*.profile | grep "Name="
+   cat $HOME/$KONSOLE_PROFILES*.profile | grep "Name="
    exit
 fi
 
@@ -543,7 +545,7 @@ do
             else
                printf "$FORMAT\n" "#Application?" "Name?" "Category?" "Role?" "Location?" "Status?" "Alias/Comments?" "Server?" "Account?" "connection tool?" > $HOME/$FILEDAT
                printf "$FORMAT" "$APP_NAME" "$NAME" "$CATEG" "$ROLE" "$LOCATION" "Created" "$COMMENT" "$SERVER" "$USER_NAME" "$CMD" >> $HOME/$FILEDAT
-               if [ -f $KONSOLE_PROFILES"$2" ]
+               if [ -f $HOME/$KONSOLE_PROFILES"$2" ]
                then
                   echo "The profile $2 already exist. Choose a new one."
                   exit
@@ -609,14 +611,14 @@ do
              shift
              while [ "p$(echo "$1" | cut -c1)" != "p-" ] && [ $# -gt 0 ]
              do
-                if [ -f $KONSOLE_PROFILES"$1" ]
+                if [ -f $HOME/$KONSOLE_PROFILES"$1" ]
                 then
                    echo "Press Enter to confirm the removal of '$1' or type 'n' to not remove it."
                    read ANS
                    if [ "$ANS" != "n" ] && [ "$ANS" != "N" ]
                    then
                       FILE="$(echo "$1" | sed 's/.profile$//g')"
-                      rm -vf $KONSOLE_PROFILES"$FILE".*
+                      rm -vf $HOME/$KONSOLE_PROFILES"$FILE".*
                    else
                       echo "$1 not removed."
                    fi
@@ -889,12 +891,12 @@ do
               exit
            fi
            DAT_EXPORT="$(cd "$DAT_EXPORT" ; pwd)"
-           Filter $KONSOLE_PROFILES "$FILTER" False True ~/.ssh_connection.dat
+           Filter $HOME/$KONSOLE_PROFILES "$FILTER" False True ~/.ssh_connection.dat
            sort_information ~/.ssh_connection.dat ~/.ssh_connection.dats
            Details_output ~/.ssh_connection.dats
            echo "Please verify listed data and confirm it in pressing Enter key. Press Ctrl-C to interrupt."
            read
-           cd $KONSOLE_PROFILES
+           cd $HOME/$KONSOLE_PROFILES
 
            # Copy dat files to DAT_EXPORT
            cat ~/.ssh_connection.dat | while read LINE
@@ -984,7 +986,7 @@ Press Enter to import these profiles to your konsole. Or Ctrl-C to interrupt."
             read
             echo "Importing..."
             FILTER_IMPORT="$FILTER"
-            Filter $KONSOLE_PROFILES "" False True .ssh_connection.lst-orig
+            Filter $HOME/$KONSOLE_PROFILES "" False True .ssh_connection.lst-orig
             cat .ssh_connection.lst | sed 's/USER/'"$USER"'/g'"$SSH_PROXY" | while read LINE
             do
                 SERVER="$(dat_extract SERVER "$LINE")"
@@ -1005,10 +1007,11 @@ Press Enter to import these profiles to your konsole. Or Ctrl-C to interrupt."
                 fi
                 LINE="$(dat_update PROFILE_FILE "$PROFILE_NAME" "$LINE")"
                 LINE="$(dat_update USER_NAME "$USER" "$LINE")"
+                LINE="$(dat_update PROFILE_PATH "$KONSOLE_PROFILES" "$LINE")"
                 CreateProfile True True "" "$LINE" "$SSH"
             done
             echo "Verification:"
-            Filter $KONSOLE_PROFILES "$FILTER_IMPORT" False True .ssh_connection.lst
+            Filter $HOME/$KONSOLE_PROFILES "$FILTER_IMPORT" False True .ssh_connection.lst
             sort_information .ssh_connection.lst .ssh_connection.data
             Details_output .ssh_connection.data
             rm -f .ssh_connection.*
@@ -1033,7 +1036,7 @@ Press Enter to import these profiles to your konsole. Or Ctrl-C to interrupt."
              PAR="$PAR '$1'"
              shift
            done
-           eval "dat_edit $KONSOLE_PROFILES '$FILTER' True $PAR"
+           eval "dat_edit $HOME/$KONSOLE_PROFILES '$FILTER' True $PAR"
 
            DETAILS="True"
            OPTFOUND=True
@@ -1058,7 +1061,7 @@ if [ "$SESSIONS_OPEN" = True ]
 then
    # -------------------------------------------------------------------------------------------- Open sessions
    > ~/.kons_tabs
-   Filter $KONSOLE_PROFILES "$FILTER" False True ~/.ssh_connection.lst
+   Filter $HOME/$KONSOLE_PROFILES "$FILTER" False True ~/.ssh_connection.lst
    sort_information ~/.ssh_connection.lst ~/.ssh_connection.data
    Details_output ~/.ssh_connection.data
    echo "Do you confirm to start previously listed konsole sessions? (Ctrl-C to stop it.)"
@@ -1089,7 +1092,7 @@ fi
 if [ "$MASS_DELETE" = "" ] && [ "$INTER" != True ] && ( [ "$1" = "" ] || [ "$DETAILS" = "True" ] || [ "$MACHINE_ONLY" = "True" ] )
 then # Simple Query
    # Filtering
-   Filter $KONSOLE_PROFILES "$FILTER" False $DETAILS ~/.ssh_connection.lst
+   Filter $HOME/$KONSOLE_PROFILES "$FILTER" False $DETAILS ~/.ssh_connection.lst
    # -------------------------------------------------------------------------------------------- Query
    if [ "$DETAILS" = "True" ]
    then
@@ -1108,7 +1111,7 @@ then # Simple Query
 else
    # -------------------------------------------------------------------------------------------- ssh or scp behavior.
    # Filtering
-   Filter $KONSOLE_PROFILES "$FILTER" False True ~/.ssh_connection.dat
+   Filter $HOME/$KONSOLE_PROFILES "$FILTER" False True ~/.ssh_connection.dat
    sort_information ~/.ssh_connection.dat ~/.ssh_connection.data
    if [ "$GO_ON" != True ]
    then
@@ -1132,7 +1135,7 @@ else
             LINE="$(awk '{if (FNR == '$iCount' ) print $0}' ~/.ssh_connection.dat)"
             let "iCount++"
             FILE="$(dat_extract PROFILE_FILE "$LINE" | sed 's/\.profile//g')"
-            rm -vf $KONSOLE_PROFILES"$FILE".*
+            rm -vf $HOME/$KONSOLE_PROFILES"$FILE".*
          done
       fi
       exit

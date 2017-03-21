@@ -5,7 +5,7 @@ Massive ssh tools based on konsole (KDE) profiles
 
 **Requirement:**
 - bash
-- konsole
+- konsole 16.12 or higher
 
 1. install kssh
 
