@@ -1,0 +1,854 @@
+#!/bin/bash
+#
+# This is a collection of reusable function for managing kons profiles
+
+FIELDS_MAX=13
+
+function SetValue
+{
+# Common command line options to set data
+
+if [ "$1" = "--noprompt" ]
+then
+   NOPROMPT=True
+   shift
+else
+   NOPROMPT=False
+fi
+case "p$1" in
+    p--app-code)
+    shift
+    if [ "$1" = "" ] && [ $NOPROMPT = False ]
+    then
+       echo "Enter the application code (ex: BS for Build Servers) - 3 bytes max. (type + => $APP_NAME_SAV)"
+       read APP_NAME_d
+       while [ "$APP_NAME_d" = "" ]
+       do
+           echo "You have to enter an Application code - 3 bytes max."
+           read APP_NAME_d
+       done
+       APP_NAME=APP_NAME_SAV
+       [ "$APP_NAME_d" != "+" ] && APP_NAME=$APP_NAME_d
+    else
+       APP_NAME="$1"
+    fi
+    ;;
+    p--server)
+    shift
+    if [ "$1" = "" ] && [ $NOPROMPT = False ]
+    then
+       echo "Enter the server name (with domain - Ex: $SERVER_SAV)"
+       read SERVER
+    else
+       SERVER="$1"
+    fi
+    while [ "$SERVER" = "" ] || [ "$(host "$SERVER")" = "not found" ] || [ "$(konsole_massive_ssh_connect $SERVER | wc -l)" -gt 1 ]
+    do
+       if [ "$(konsole_massive_ssh_connect $SERVER | wc -l)" -gt 1 ]
+       then
+          echo "The server $SERVER already exist in konsole profiles."
+          konsole_massive_ssh_connect --details $SERVER
+       else
+          echo "You have to enter a valid and HP DNS declared server name."
+       fi
+       SERVER=""
+       if [ "$1" = "" ] && [ $NOPROMPT = False ]
+       then
+          echo "Please retry. Press enter to exit."
+          read SERVER
+       fi
+       if [ "$SERVER" = "" ]
+       then
+          echo "Exiting."
+          exit
+       fi
+    done
+    ;;
+    p--user)
+    shift
+    if [ "$1" = "" ] && [ $NOPROMPT = False ]
+    then
+       echo "Username to use: (default is $(id -un)) (type + => $USER_NAME_SAV)"
+       read USER_NAME_d
+       if [ "$USER_NAME_d" = "" ]
+       then
+          USER_NAME_d=$(id -un)
+       fi
+       USER_NAME=$USER_NAME_SAV
+       [ "$USER_NAME_d" != "+" ] && USER_NAME=$USER_NAME_d
+    else
+       USER_NAME="$1"
+    fi
+    ;;
+    p--categ)
+    shift
+    if [ "$1" = "" ] && [ $NOPROMPT = False ]
+    then
+       echo "Enter Category (PRO, ITG or DEV) (type + => $CATEG_SAV) "
+       read CATEG_d
+       if [ "$CATEG_d" = "" ]
+       then
+          CATEG_d=DEV
+       fi
+       CATEG=$CATEG_SAV
+       [ "$CATEG_d" != "+" ] && CATEG=$CATEG_d
+    else
+       CATEG="$1"
+    fi
+    ;;
+    p--role)
+    shift
+    if [ "$1" = "" ] && [ $NOPROMPT = False ]
+    then
+       echo "Enter Role (APP, WEB, ...) - 3 bytes max. Default is OTH. (type + => $ROLE_SAV)"
+       read ROLE_d
+       if [ "$ROLE_d" = "" ]
+       then
+          ROLE_d=OTH
+       fi
+       ROLE=$ROLE_SAV
+       [ "$ROLE_d" != "+" ] && ROLE=$ROLE_d
+    else
+       ROLE="$1"
+    fi
+    ;;
+    p--location)
+    shift
+    if [ "$1" = "" ] && [ $NOPROMPT = False ]
+    then
+       echo "Enter Location (NGDC,BBN,IND,VCD,ESP,...) - 4 bytes max. Default is NGDC. (type + => $LOCATION_SAV)"
+       read LOCATION_d
+       if [ "$LOCATION_d" = "" ]
+       then
+          LOCATION_d=NGDC
+       fi
+       LOCATION=$LOCATION_SAV
+       [ "$LOCATION_d" != "+" ] && LOCATION=$LOCATION_d
+    else
+       LOCATION="$1"
+    fi
+    ;;
+    p--autossh)
+    shift
+    if [ "$1" = "" ] && [ $NOPROMPT = False ]
+    then
+       echo "Your client may use autossh script??? (Yes or No) default is No"
+       read PROXY
+
+       if [ "$PROXY" = "" ]
+       then
+          PROXY=No
+       fi
+    else
+       PROXY="$1"
+    fi
+    CMD=ssh
+    case $PROXY in
+      "Yes" | "Y" | "yes" | "y" )
+        CMD=autossh
+        ;;
+    esac
+    ;;
+    p--status)
+    shift
+    if [ "$1" = "" ] && [ $NOPROMPT = False ]
+    then
+       echo "What is the server status? (free input string) (type + => $STATUS_SAV)"
+       read STATUS_d
+       if [ "$STATUS_d" = "" ]
+       then
+          STATUS_d=N/D
+       fi
+       STATUS=$STATUS_SAV
+       [ "$STATUS_d" != "+" ] && STATUS=$STATUS_d
+    else
+       STATUS="$1"
+    fi
+    ;;
+    p--comment)
+    shift
+    if [ "$1" = "" ] && [ $NOPROMPT = False ]
+    then
+       echo "What is the profile comment/alias? (free input string) (type + => $COMMENT_SAV)"
+       read COMMENT_d
+       COMMENT=$COMMENT_SAV
+       [ "$COMMENT_d" != "+" ] && COMMENT=$COMMENT_d
+    else
+       COMMENT="$1"
+    fi
+    ;;
+    *)
+    echo "$(echo $1| cut -c 2-) is not a recognized option."
+    help
+    return 1
+    ;;
+esac
+
+}
+
+function Filter()
+{
+# List of parameters 
+# Where to search profiles
+PATH_SEARCH=$1
+# Filter
+FILTER="$2"
+# True if going to export Data
+EXPORT_OUTPUT="$3"
+# True if the output is the detailed one
+DETAILS_OUTPUT="$4"
+# Output file name
+OUTPUT_FILE="$5"
+
+
+find $PATH_SEARCH -name \*.profile -exec grep "$FILTER" '{}' \; -print -o -name \*.dat -exec grep "$FILTER" '{}' \; -print| grep -e '^[./].*\.profile' -e '^[./].*\.dat' | grep -v -e saved.dat -e std_profile_default.dat | while read LINE
+do
+   FILE="$(echo "$LINE" | sed 's/\.dat$/.profile/g')"
+   FILEDAT="$(echo "$LINE" | sed 's/\.profile$/.dat/g')"
+   if [ -f "$FILEDAT" ] 
+   then
+      DAT="$(cat "$FILEDAT")"
+   fi
+   if [ "$EXPORT_OUTPUT" = "True" ]
+   then
+      echo "$FILE"
+   else
+      if [ "$DETAILS_OUTPUT" = "True" ]
+      then
+         if [ -f "$FILEDAT" ]
+         then
+            SSH_CONNECT="$DAT"
+         else
+            SSH_NAME="$(grep Name "$FILE" | sed 's/Name=//g
+                                                 s/ (\([?a-zA-Z]*\),\([?a-zA-Z]*\),\([?a-zA-Z]*\)) - \(.*\)/|\1|\2|\3|N\/D|\4|/g
+                                                 s/ (\([?a-zA-Z]*\),\([?a-zA-Z]*\),\([?a-zA-Z]*\))/|\1|\2|\3|N\/D||/g
+                                                 s/\( (\|: \)/|/g
+                                                 s/) - \(.*\)/|\1|/g
+                                                 s/)/||/g' )"
+
+            GetInfoFromCmd "$FILE"
+            # Result are in $SERVER_NAME $USER_NAME $SSH_COMMAND $SSH_COMMAND_OPTS - COMMAND should not be empty.
+            if [ "$COMMAND" = "" ] 
+            then
+               continue
+            fi
+            SSH_CONNECT="$SSH_NAME$SERVER_NAME|$USER_NAME|$SSH_COMMAND|$(dirname "$FILE" | sed 's|'$HOME/'||g')|$(basename "$FILE")|$SSH_COMMAND_OPTS"
+         fi
+         CUR_NUM=$(echo "$SSH_CONNECT" | awk -F"|" '{ print NF }')
+         if [ "$CUR_NUM" -ge $FIELDS_MAX ]
+         then
+            echo "$SSH_CONNECT"
+         else
+           # Trying to convert old format"
+           case "$CUR_NUM" in
+               10)
+                  echo "$SSH_CONNECT|||"
+                  ;;
+               12)
+                  echo "$SSH_CONNECT|"
+                  ;;
+               *)
+                  # Application|Name|Category|Role|Location|Status|Alias/Comments|server|Account|connection tool|Profile Path|Profile file|ssh/autossh options
+                  echo "??|??|??|??|??|??|KSSH: Data format $CUR_NUM not supported.|??|??|??|??|$(basename $FILE)|??|??"
+                  ;;
+           esac
+         fi
+      else
+         if [ -f "$FILEDAT" ] 
+         then
+            SSH_CONNECT="$(dat_extract "USER_NAME" "$DAT")@$(dat_extract "SERVER" "$DAT")"
+         else
+            GetInfoFromCmd "$FILE"
+            # Result are in $SERVER_NAME $USER_NAME $SSH_COMMAND $SSH_COMMAND_OPTS - COMMAND should not be empty.
+            if [ "$COMMAND" = "" ] 
+            then
+               continue
+            fi
+            SSH_CONNECT="$USER_NAME@$SERVER_NAME"
+         fi
+         echo $SSH_CONNECT
+      fi
+   fi
+done | sort -u > $OUTPUT_FILE
+}
+
+function GetInfoFromCmd()
+{
+ # Analyze the Command to execute. Accept only ssh, autossh and ssh-proxy. Have to get SERVER_NAME, USER_NAME and SSH_COMMAND
+ COMMAND="$(grep Command "$1" | grep '=\(ssh\|autossh\|ssh-proxy\)')"
+ if [ "$COMMAND" = "" ]
+ then
+    return
+ fi
+
+ # Check SSH_COMMAND
+ SSH_COMMAND="$(echo "$COMMAND" | sed 's/^.*=\(ssh\|autossh\|ssh-proxy\).*$/\1/g')"
+ if [ "$(echo "$COMMAND" | grep -- "@")" = "" ]
+ then
+    # Check -l option for USER
+    if [ "$(echo "$COMMAND" | grep -- "-l [a-zA-Z0-9][a-zA-Z0-9]*" )" != "" ]
+    then
+       USER_NAME="$(echo "$COMMAND" | sed 's/^.* -l \([a-zA-Z0-9][a-zA-Z0-9]*\) *.*$/\1\g')"
+    else
+       USER_NAME="$(id -un)"
+    fi
+ else
+    USER_NAME="$(echo "$COMMAND" | sed 's/^.* \([a-zA-Z0-9]*\)@.*$/\1/g')"
+ fi
+
+ # Remove most common options as follow:
+ # Command=*
+ # autossh -M [0-9]* option
+ # ssh single flag from ssh ie - 1246AaCfgKkMNnqsTtVvXxYy (from the ssh --help)
+ # ssh other option with values - bcDeFILlRWwmOopSi with '"a-zA-Z0-9[=*] (from the ssh --help)
+ # Removing extra spaces before the server name.
+ SERVER_NAME="$(echo "$COMMAND" | sed 's/^Command= *[a-zA-Z-]*//g
+                                       s/ * -M *[0-9][0-9]*//g
+                                       s/ * -[1246AaCfgKkMNnqsTtVvXxYy]//g
+                                       s/ * -[bcDeFILlRWwmOopSi] *['"'"'"a-zA-Z0-9]['"'"'"a-z=A-Z0-9._-]*//g
+                                       s/[a-zA-Z].*@//g
+                                       s/ *//g')"
+ SSH_COMMAND_OPTS="$(echo "$COMMAND" | sed "s/Command=$SSH_COMMAND//g
+                                            s/ -C//g
+                                            s/ -X//g
+                                            s/ -M0//g
+                                            s/ -o ServerAliveInterval=10//g
+                                            s/ -l [a-zA-Z0-9][a-zA-Z0-9]*//g
+                                            s/ [a-zA-Z].*@$SERVER_NAME//g
+                                            s/ $SERVER_NAME//g
+                                            s/^ //g")"
+}
+
+
+function sort_information()
+{
+ LST="$1"
+ DATA="$2"
+ awk -F'|' '{ printf "%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n",$1,$3,$4,$5,$6,$7,$8,$9,$2,$10,$11,$12,$13,$14 } ' $LST | grep -v -e '^#' | sort > "$DATA"
+}
+
+function Details_output()
+{
+ awk -F'|' '
+BEGIN {
+  printf "%-10s|%8s|%-4s|%-5s|%-7s|%-70s|%30s|%12s|%7s\n","App Class" ,"Category","Role","Locat","Status","Alias/comment"                                                         ,"Full server Name"              ,"Username"    ,"Profile"
+  printf "%-10s+%8s+%-4s+%-5s+%-7s+%-70s+%30s+%12s+%7s\n","----------","--------","----","-----","------","----------------------------------------------------------------------","------------------------------","------------","-------"
+}
+
+{ printf "%-10s|%8s|%-4s|%-5s|%-7s|%-70s|%30s|%12s|%7s\n",$1          ,$2        ,$3    ,$4     ,$5      ,$6                                                                      ,$7                              ,$8            ,$12 }
+
+END {
+  printf "%-10s+%8s+%-4s+%-5s+%-7s+%-70s+%30s+%12s+%7s\n","----------","--------","----","-----","------","----------------------------------------------------------------------","------------------------------","------------","-------"
+}
+' "$1"
+}
+
+function dat_servers_list()
+{
+ MACHINE_ONLY="$1"
+ CONNECTION_LIST="$2"
+ SEP="$3"
+
+ if [ ! -f "$CONNECTION_LIST" ]
+ then
+    echo "$CONNECTION_LIST not found. Exiting."
+    exit 1
+ fi
+
+ if [ "$MACHINE_ONLY" = "True" ]
+ then
+    if [ "$SEP" = "" ]
+    then
+       cat "$CONNECTION_LIST" | sed 's/^.*@//g'
+    else
+       cat "$CONNECTION_LIST" | sed 's/^.*@//g' | while read CONN
+       do
+          printf "%s%s" "$CONN" "$SEP"
+       done
+       echo
+    fi
+ else
+    cat "$CONNECTION_LIST" 
+ fi
+
+}
+
+
+function dat_field_pos
+{
+ # Application|Name|Category|Role|Location|Status|Alias/Comments|server|Account|connection tool|Profile Path|Profile file|ssh/autossh options
+ case $1 in
+   "APP_NAME")     COL=1  ;;
+   "NAME")         COL=2  ;;
+   "CATEG")        COL=3 ;;
+   "ROLE")         COL=4 ;;
+   "LOCATION")     COL=5 ;;
+   "STATUS")       COL=6 ;;
+   "COMMENT")      COL=7 ;;
+   "SERVER")       COL=8 ;;
+   "USER_NAME")    COL=9 ;;
+   "CMD")          COL=10 ;;
+   "PROFILE_PATH") COL=11 ;;
+   "PROFILE_FILE") COL=12 ;;
+   "CMD_OPTS")     COL=13 ;;
+ esac
+ if [ "$COL" = "" ]
+ then
+    echo "Internal error. $1 is not a recognized column name."
+    exit
+ fi
+ return $COL
+}
+
+function dat_extract
+{
+ dat_field_pos "$1"
+ COL=$?
+ echo "$2" | awk -F"|" '{ print $'"$COL"'  }'
+}
+
+function dat_update
+{
+ dat_field_pos "$1"
+ POS=$?
+ VAL="$2"
+ let "AFT=$POS+1"
+ if [ $POS -gt 1 ]
+ then
+    let "BEF=$POS-1"
+    LINE="$(echo "$3" | cut -d'|' -f 1-$BEF)|"
+ fi
+ echo "$LINE$VAL|$(echo "$3" | cut -d'|' -f $AFT-)"
+}
+
+function HelpDatStruct()
+{
+ if [ "$1" = "edit" ]
+ then
+    NOEDIT="(Do not update this)"
+ fi
+ echo "#Application|Name|Category|Role|Location|Status|Alias/Comments|server|Account|connection tool|Profile Path$NOEDIT|Profile file$NOEDIT|Connection tool options"
+}
+
+
+function CreateProfile ()
+{
+ if [ $# -lt 4 ] || [ $# -gt 5 ]
+ then
+    echo "ERROR! function CreateProfile needs 4 or 5 parameters. Exiting."
+    exit
+ fi
+ DAT="$1"
+ PROF="$2"
+ PROF_PATH="$3"
+ RECORD="$4"
+ CMD="$5"
+ # Application|Name|Category|Role|Location|Status|Alias/Comments|server|Account|connection tool|Profile Path|Profile file|Connection tool options
+ APP_NAME="$( dat_extract APP_NAME      "$RECORD")"
+ CATEG="$(    dat_extract CATEG         "$RECORD")"
+ ROLE="$(     dat_extract ROLE          "$RECORD")"
+ LOCATION="$( dat_extract LOCATION      "$RECORD")"
+ COMMENT="$(  dat_extract COMMENT       "$RECORD")"
+ SERVER="$(   dat_extract SERVER        "$RECORD")"
+ USER_NAME="$(dat_extract USER_NAME     "$RECORD")"
+ CMD_OPTS="$( dat_extract CMD_OPTS      "$RECORD")"
+ INT_CMD_OPTS=""
+ if [ "$CMD" = "" ]
+ then
+    CMD="$(            dat_extract CMD           "$RECORD")"
+ else
+    RECORD="$(dat_update CMD "$CMD" "$RECORD")"
+ fi
+ check_cmds_opts
+ # Provide $CMD_OPTS $INT_CMD_OPTS
+ RECORD="$(dat_update CMD_OPTS "$CMD_OPTS" "$RECORD")"
+
+ [ "$PROF_PATH" = "" ] && PROF_PATH="$HOME/$(dat_extract PROFILE_PATH  "$RECORD")"
+ PROFILE="$(  dat_extract PROFILE_FILE  "$RECORD")"
+ if [ -f "$PROF_PATH/$PROFILE" ]
+ then
+    MESS="updated"
+ else
+    MESS="created"
+ fi
+ if [ "$PROF" = "True" ]
+ then
+    if [ ! -f $PROF_PATH/template.profile.tpl ] 
+    then
+       echo "Warning! $PROF_PATH/template.profile.tpl does not exist!"
+    else
+       sed 's/NAME/'"$APP_NAME: $SERVER ($CATEG,$ROLE,$LOCATION)"'/g
+            s/CMD/'"$CMD $INT_CMD_OPTS $CMD_OPTS $USER_NAME@$SERVER"'/g' $PROF_PATH/template.profile.tpl > "$PROF_PATH/$PROFILE"
+       printf "$PROFILE $MESS. "
+    fi
+ fi
+ if [ "$DAT" = "True" ]
+ then
+    FILEDAT="$(echo "$PROF_PATH/$PROFILE" | sed 's/\.profile$/.dat/g')"
+    if [ -f "$FILEDAT" ]
+    then
+       if [ "$RECORD" != "$(cat "$FILEDAT")" ]
+       then
+          # cut to garantuee max 12 fields
+          echo "$RECORD" | cut -d'|' -f1-$FIELDS_MAX > "$FILEDAT"
+          printf "$FILEDAT updated. "
+       else
+          DAT=False
+       fi
+    else
+       # cut to garantuee max 12 fields
+       echo "$RECORD" | cut -d'|' -f1-$FIELDS_MAX > "$FILEDAT"
+       printf "$FILEDAT created. "
+    fi
+ fi
+ if [ "$PROF" = "True" ] || [ "$DAT" = "True" ]
+ then
+    printf "\n"
+ fi
+}
+
+function check_cmds_opts()
+{
+ # Checking on $CMD and $CMD_OPTS
+ # Checking about proposed CMD options
+ # Building CMD_OPTS and INT_CMD_OPTS
+
+ if [ "$CMD" = "autossh" ]
+ then
+    if [ "$(echo "$CMD_OPTS" | grep -e "-M *0 " -e "-M *0$")" != "" ]
+    then
+       CMD_OPTS="$(echo "$CMD_OPTS" | sed 's/-M *0//g')"
+    fi
+    if [ "$(echo "$CMD_OPTS" | grep -e "-M [0-9][0-9]*")" = "" ]
+    then
+       INT_CMD_OPTS="$INT_CMD_OPTS -M0"
+    fi      
+ fi
+ 
+ if [ "$(echo "$CMD_OPTS" | grep -e "-X")" != "" ]
+ then
+    CMD_OPTS="$(echo "$CMD_OPTS" | sed 's/-X//g')"
+ fi
+ if [ "$(echo "$CMD_OPTS" | grep -e "-x")" = "" ]
+ then
+    INT_CMD_OPTS="$INT_CMD_OPTS -X"
+ fi
+
+ if [ "$(echo "$CMD_OPTS" | grep -e "-C")" != "" ]
+ then
+    CMD_OPTS="$(echo "$CMD_OPTS" | sed 's/-C//g')"
+ fi
+ if [ "$(echo "$CMD_OPTS" | grep -e "-c")" = "" ]
+ then
+    INT_CMD_OPTS="$INT_CMD_OPTS -C"
+ fi
+
+ if [ "$(echo "$CMD_OPTS" | grep -e "-o *ServerAliveInterval *= *10 *")" != "" ]
+ then
+    CMD_OPTS="$(echo "$CMD_OPTS" | sed 's/-o *ServerAliveInterval *= *10//g')"
+ fi
+ if [ "$(echo "$CMD_OPTS" | grep -e "-o *ServerAliveInterval *= *[0-9][0-9]* *")" = "" ]
+ then
+    INT_CMD_OPTS="$INT_CMD_OPTS -o ServerAliveInterval=10"
+ fi
+}
+
+function CSV_extract()
+{
+ CSV_FILE="$1"
+ FILTER_PATH="$2"
+ FILTER="$3"
+ if [ "$CSV_FILE" = "" ]
+ then
+    echo "Please provide a CSV filename."
+    exit
+ fi
+ if [ ! -w "$(dirname "$CSV_FILE")" ] 
+ then
+    echo "Unable to write in $(dirname "$CSV_FILE"). Exiting."
+    exit 1
+ fi
+ HelpDatStruct edit > "$CSV_FILE"
+ if [ $? -ne 0 ]
+ then
+    echo 'Unable to write. Cancelling.'
+ fi
+  # Filtering
+ Filter "$FILTER_PATH" "$FILTER" False True ~/.ssh_connection.lst
+ # cut to garantuee max 12 fields
+ cat ~/.ssh_connection.lst | cut -d'|' -f1-$FIELDS_MAX >> "$1"
+ echo "Information extracted to $CSV_FILE. $(wc -l "$CSV_FILE" | awk '{print $1}') profile[s] exported."
+}
+
+function dat_edit()
+{
+ FILTER_PATH="$1"
+ FILTER="$2"
+ PROFILES_UPD="$3"
+ shift;shift;shift
+
+  # Filtering
+ #      PATH_SEARCH, FILTER,   EXPORT_OUTPUT, DETAILS_OUTPUT, OUTPUT_FILE
+ Filter $FILTER_PATH "$FILTER" False          True            ~/.profiles.dat
+ shift
+
+ [ "$EDITOR" = "" ] && EDITOR=vi
+ VALUE=SEARCH
+ # Process options
+ while [ $# -gt 0 ]
+ do
+    if [ "$1" = "--noedit" ]
+    then
+       EDITOR=""
+       shift
+    else
+       SetValue --noprompt $1 $2
+       [ $? -eq 1 ] && exit
+       VALUE=FOUND
+       shift;shift
+    fi
+ done
+ if [ "$EDITOR" = "" ] && [ $VALUE = SEARCH ]
+ then
+     echo "At least you need to set one of 'app-code','server','user','categ','role','location','autossh','status','comment' has to be set"
+     rm -f ~/.profiles.dat
+     exit 1
+ fi
+
+ # Generation of list of profiles
+ OUTPUT_FORMAT='%40s|%8s|%30s|%15s|%5s|%5s|%5s|%12s|%15s|%7s|%s'
+ echo "Do NOT update this column|app-code|server|user|categ|role|locat|connect tool|flags|status|comment" |  awk -F'|' ' 
+{ printf "'"$OUTPUT_FORMAT"'\n",$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11 }' > ~/.profiles.lst
+ echo "------------------------------------------------------------------------------------------------------------">> ~/.profiles.lst
+ if [ "$EDITOR" != "" ]
+ then
+    # Need to provide a readable output
+    awk -F'|' ' { printf "'"$OUTPUT_FORMAT"'\n",$12,$1,$8,$9,$3,$4,$5,$10,$13,$6,$7 }' ~/.profiles.dat >> ~/.profiles.lst
+    echo "You are going to edit some profiles information. 
+Do not update the first column. All other column can be updated. The two first lines are simply ignored.
+Trailing or leading spaces in column are ignored.
+Do not remove lines.
+
+Press enter to edit now."
+    read
+    $EDITOR ~/.profiles.lst
+    if [ $? -ne 0 ]
+    then
+       echo "Issue to load $EDITOR. Please check. You may need to verify the environment variable EDITOR."
+       rm -f ~/.profiles.lst ~/.profiles.dat
+       exit 1
+    fi
+ else
+    # Generating an automated ~/.profiles.lst
+    awk -F"|" '{ printf "'"$OUTPUT_FORMAT"'\n",$11,'"$APP_NAME"','"$SERVER"','"$USER_NAME"','"$CATEG"','"$ROLE"','"$LOCATION"','"$CMD"','"$CMD_OPTS"','"$STATUS"','"'$COMMENT'"' }' ~/.profiles.lst
+ fi
+ echo "Processing..."
+ #     1            2    3        4    5        6      7              8      9       10              11           12           13    14          15       16     17   18    19   20    21           22    23     24
+ echo "#Application|Name|Category|Role|Location|Status|Alias/Comments|server|Account|connection tool|Profile Path|Profile file|flags|ProfileName|app-code|server|user|categ|role|locat|connect tool|flags|status|comment" > ~/.profiles.dat.new
+ awk -F"|" '{ print $12 }' ~/.profiles.dat | grep -v -e '^#'| while read PROFILE
+ do
+     PROFILE="$(echo "$PROFILE" | sed 's/\([()]\)/\\\1/g')"
+     NEW="$(awk -F"|" '$1 ~/^ *'"$PROFILE"'$/ {print $0}' ~/.profiles.lst)"
+     # cut to garantuee max $FIELDS_MAX fields
+     DAT="$(awk -F"|" '$12 ~/^'"$PROFILE"'$/ {print $0}' ~/.profiles.dat | cut -d'|' -f1-$FIELDS_MAX)"
+     if [ "$NEW" != "" ] && [ "$DAT" != "" ]
+     then
+        echo "$DAT|$NEW" >> ~/.profiles.dat.new
+     fi
+ done
+ awk -F"|" '
+function testUpdate(sOld,sNew)
+{
+ gsub("^ *","",sNew);
+ gsub(" *$","",sNew);
+ if (sOld != sNew)
+    return(1)
+}
+
+function Update(sOld,sNew)
+{
+ gsub("^ *","",sNew);
+ gsub(" *$","",sNew);
+ if (sOld != sNew)
+    return(sNew)
+ return(sOld)
+}
+
+{ 
+ if (FNR>1)
+    {
+     iCount=0
+     LINE=""
+     LINE=sprintf("%s%s|",LINE,Update($1 ,$15));iCount=iCount+testUpdate($1 ,$15);
+     LINE=sprintf("%s%s|",LINE,       $2 );
+     LINE=sprintf("%s%s|",LINE,Update($3 ,$18));iCount=iCount+testUpdate($3 ,$18);
+     LINE=sprintf("%s%s|",LINE,Update($4 ,$19));iCount=iCount+testUpdate($4 ,$19);
+     LINE=sprintf("%s%s|",LINE,Update($5 ,$20));iCount=iCount+testUpdate($5 ,$20);
+     LINE=sprintf("%s%s|",LINE,Update($6 ,$23));iCount=iCount+testUpdate($6 ,$23);
+     /* comment case. An empty string is possible. */
+     if ($24 == "'"''"'")
+        LINE=sprintf("%s%s|",LINE,       $2 );
+     else
+        LINE=sprintf("%s%s|",LINE,Update($7 ,$24));iCount=iCount+testUpdate($7 ,$24);
+     LINE=sprintf("%s%s|",LINE,Update($8 ,$16));iCount=iCount+testUpdate($8 ,$16);
+     LINE=sprintf("%s%s|",LINE,Update($9 ,$17));iCount=iCount+testUpdate($9 ,$17);
+     LINE=sprintf("%s%s|",LINE,Update($10,$21));iCount=iCount+testUpdate($10,$21);
+     LINE=sprintf("%s%s|",LINE,       $11);
+     LINE=sprintf("%s%s|",LINE,       $12);
+     LINE=sprintf("%s%s|",LINE,Update($13,$22));iCount=iCount+testUpdate($13,$22);
+     if (iCount >0)
+        printf("%s\n",LINE)
+    }
+}' ~/.profiles.dat.new | cut -d'|' -f1-$FIELDS_MAX > ~/.profiles.dat
+
+ rm -f ~/.profiles.dat.new ~/.profiles.lst
+
+ if [ "$PROFILES_UPD" = "True" ]
+ then
+    UpdateAllProfiles ~/.profiles.dat True True "$FILTER_PATH"
+    rm -f ~/.profiles.dat 
+ fi
+}
+
+function UpdateAllProfiles()
+{
+ echo "Updating profiles..."
+ cat "$1" | grep -v -e '^#' | while read LINE
+ do
+       CreateProfile "$2" "$3" "$4" "$LINE"
+ done
+ echo "$(wc -l "$1"  |awk '{print $1}') profiles processed."
+}
+
+# This function add commands to be executed remotely. ssh_run will run them in // and ssh_show will display a status, before providing the final output.
+
+function ssh_add_rem_cmds()
+{
+ if [ ! -d $TMPDIR ]
+ then
+    mkdir $TMPDIR
+ fi
+ if [ ! -d $TMPDIR ]
+ then
+    echo "Unable to create dir: $TMPDIR. Execution canceled."
+    exit 1
+ fi
+ echo "$2" > $TMPDIR/$1.new
+ touch $TMPDIR/rem_commands
+ if [ "$SILENT" !=  True ]
+ then
+    printf "."
+ fi
+}
+
+function ssh_run()
+{
+ if [ ! -f $TMPDIR/rem_commands ]
+ then
+    return
+ fi
+ cd $TMPDIR
+ if [ $? -ne 0 ]
+ then
+    echo "Unable to change dir to: $TMPDIR not accessible. Execution canceled."
+    exit 1
+ fi
+ for i in *.new
+ do
+    SERVER="$(echo $i | sed 's/.new$//g')"
+    ssh_run_rem_cmd $SERVER &
+ done
+}
+
+function ssh_run_rem_cmd()
+{
+ if [ "$SHORT" = True ]
+ then
+    echo "[1m$SERVER[0m:" > $1.started
+ else
+    echo "$(date)  - [1m$SERVER[0m:
+Executing : $(cat $1.new)
+" > $1.started
+ fi
+
+ eval $(cat $1.new) >> $SERVER.started 2>&1
+ RET=$?
+ if [ $RET -ne 0 ]
+ then
+    if [ "$SHORT" != True ]
+    then
+       echo "$(date) - DONE ([1mReturn code [31m$RET[0m)
+[1;31mYour command returns an error. Please check.[0m" > $SERVER.status
+    else
+       echo "ERROR DETECTED: [1,31m$RET[0m" > $SERVER.status
+    fi
+ else
+    if [ "$SHORT" != True ]
+    then
+       echo "$(date) - DONE (Return code $RET)" > $SERVER.status
+    fi
+ fi
+ if [ "$NO_OUTPUT" != "True" ] && [ "$SHORT" != True ]
+ then
+    cat $SERVER.status >> $SERVER.started
+    echo "---------------------------------------------------------" >> $SERVER.started 
+ fi
+ touch $i.DONE
+}
+
+function ssh_show()
+{
+ if [ ! -f $TMPDIR/rem_commands ]
+ then
+    return
+ fi
+ cd $TMPDIR
+ if [ $? -ne 0 ]
+ then
+    echo "Unable to change dir to: $TMPDIR not accessible. Execution canceled."
+    exit 1
+ fi
+ 
+ ALL_COUNT=$(ls *.new | wc -l)
+ DONE_COUNT=$(ls *.DONE 2>/dev/null | wc -l)
+ while [ $ALL_COUNT -ne $DONE_COUNT ]
+ do
+   if [ "$SILENT" != True ] 
+   then
+      printf "\r[K$DONE_COUNT / $ALL_COUNT done. Waiting..."
+   fi
+   sleep 1
+   DONE_COUNT=$(ls *.DONE 2>/dev/null | wc -l)
+ done
+ if [ "$SILENT" != True ] 
+ then
+    printf "\r[KCalls result: $SAVE_LOG\n"
+ fi
+ if [ "$SAVE_LOG" != "" ]
+ then
+    cp *.started "$SAVE_LOG"
+    for i in "$SAVE_LOG"/*.started
+    do
+       NEW_FILE=$(echo "$i" | sed 's/\.started$/.log/g')
+       if [ -f sed.cmd ]
+       then
+         cat "$1" | sed -f sed.cmd > "$NEW_FILE"
+         rm "$1"
+       else
+         mv "$i" "$NEW_FILE"
+       fi
+       if [ "$NO_OUTPUT" != "True" ]
+       then
+          cat "$NEW_FILE"
+       fi
+    done
+ else
+    if [ -f sed.cmd ]
+    then
+      cat *.started | sed -f sed.cmd
+    else
+      cat *.started
+    fi
+ fi
+ cd ~
+}
