@@ -242,6 +242,8 @@ Another example:
 Ex: $(basename $0) --collection BS_PRO_RCS.1 --open --collection BS_PRO_RCS.2 --open --collection --BS_PRO_NGDC --open
 This will open 3 konsole windows 1 for each collection.
 
+Extra parameters:
+--version : To show out $(basename $0) script version.
 " | more
 }
 
@@ -488,6 +490,10 @@ do
    if [ "$(echo "p$1" | cut -c1-2)" = "p-" ]
    then
       case "p$1" in
+        "p--version" )
+            echo "$(basename $0) version 0.1"
+            exit
+            ;;
         "p--collection")
             while [ $# -ne 0 ]
             do
