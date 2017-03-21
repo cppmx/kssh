@@ -13,6 +13,27 @@ fi
 . ~/bin/kons_functions
 # Use function SetValue from common functions.
 
+if [ -f ~/.config/kssh/config.sh ]
+then
+    source ~/.config/kssh/config.sh
+fi
+
+if [ "$KONSOLE_PROFILES" = "" ] && [ -d ~/.local/share/konsole/ ]
+then
+   echo "Detected KDE4 konsole profiles..."
+   KONSOLE_PROFILES=~/.local/share/konsole/
+fi
+if [ "$KONSOLE_PROFILES" = "" ] && [ -d ~/.kde/share/apps/konsole ]
+then
+  echo "Detected KDE3 konsole profiles..."
+  KONSOLE_PROFILES=~/.kde/share/apps/konsole/
+fi
+
+if [ ! -d $KONSOLE_PROFILES ]
+then
+   echo "Unable to find out konsole profile. You must install konsole and run it once to create profiles"
+   exit 1
+fi
 
 function Help()
 {
@@ -21,17 +42,17 @@ Read documentation about generating keys (man ssh-keygen) and ssh-add (man ssh-a
 
 There is 8 ways to use this tool. This will be explained in details just below.
 - 1. Query profiles
-  $(basename $0) [--m [options]|--details [--format <sprintf format> <awk fields selection>]] [--sessions-open] [<Grep Filter>] 
+  $(basename $0) [--m [options]|--details [--format <sprintf format> <awk fields selection>]] [--sessions-open] [<Grep Filter>]
 - 2. Execute remotely same command to several servers
   $(basename $0) <Grep Filter> [Several options] '<cmd>'
 - 3. Download or upload same files from or to several remote servers.
-  $(basename $0) <Grep Filter> <File1> [<file2> [...]] SERVER:<path> 
+  $(basename $0) <Grep Filter> <File1> [<file2> [...]] SERVER:<path>
   or
-  $(basename $0) <Grep Filter> SERVER:<File1> [SERVER:<file2> [...]] <localpath> 
+  $(basename $0) <Grep Filter> SERVER:<File1> [SERVER:<file2> [...]] <localpath>
 - 4. export or import konsole profiles
   $(basename $0) <Grep Filter> --import [options]
   $(basename $0) <Grep Filter> --export [options]
-  or 
+  or
   $(basename $0) <Grep Filter> --import-data [options]
   $(basename $0) <Grep Filter> --export-data [options]
 - 5. Change information associated to each profiles:
@@ -68,7 +89,7 @@ This example will show you all BS application, PRO or ITG servers selected.
 
     $(basename $0) \"-e BS.*PRO -e BS.*ITG\" --details
 This example will show you all BS application, PRO or ITG servers selected in details. Note that the option '--details' can be set before the filter option
-    $(basename $0) [1m--details[0m \"-e BS.*PRO -e BS.*ITG\" 
+    $(basename $0) [1m--details[0m \"-e BS.*PRO -e BS.*ITG\"
 
 [1m2. Execute Same commands on several servers[0m
 Syntax: $(basename $0) <Filter> [--silent|--go-on] [-i|--interactive|--highlight <string>] [--short] [--save_log <dir> [--no-output]] <Command> [Par1] [...]
@@ -81,7 +102,7 @@ Options are:
   If your command do not require any interactive session, all commands will be executed in parallel to boost getting the result.
 
 --highlight [--color color_num] <string>:
-  In case of non interactive session, you may need to highlight some results. Use this option to set a regular expression for sed to highlight them. 
+  In case of non interactive session, you may need to highlight some results. Use this option to set a regular expression for sed to highlight them.
   With the optional [color_num], you can set a specific color for these strings. color are : By default, color are not set and the string will appear in light.
 30	Black
 31	Red
@@ -117,7 +138,7 @@ Options are:
       This will open vi to edit the 'test.txt', one by one. As soon as you are connected to one server, you will need to quit vi when done. Then $1 will open the next server.
 
 [1m3. Execute an scp from or to the list of server. Use the special string 'SERVER:' to refer to each servers filtered.[0m
-Syntax: $(basename $0) <Filter> [--silent] <File1> <File2> [File3 [...]] 
+Syntax: $(basename $0) <Filter> [--silent] <File1> <File2> [File3 [...]]
 
 Ex: $(basename $0) PRO MyFile SERVER:tmp/
     This command will copy MyFile to every server filtered by PRO to remote tmp directory
@@ -131,7 +152,7 @@ Options are:
 [1m4. Export/Import konsole profiles for others (with scripts to use)[0m
 There is 4 use cases: import, export, import-data and export-data.
  - Importing profiles from a package
-   Syntax: 
+   Syntax:
    $(basename $0) <Filter> --import <kons_profile_file> [--username <profiles_username>] [--autossh]
 
    This option will import the profiles stored in the kons_profile_file file.
@@ -144,12 +165,12 @@ There is 4 use cases: import, export, import-data and export-data.
     $(basename $0) 'PERS' --import kons_profiles.tar.gz --autossh
    This command will import filtered PERS profiles to your system and will configure to use autossh if the command exist. By default, it is using direct ssh command.
 
- - Exporting profiles in a package. 
+ - Exporting profiles in a package.
    $(basename $0) <Filter> --export <exported_file>
-   This command will export selected profiles. 
+   This command will export selected profiles.
 
    Ex: $(basename $0) BS2 --export ~/tmp/kons_profiles.tar.gz
-   This command will export 'BS2' profiles thanks to your filter, ie BS2 in this exaple, and generates the 'exported_file', ie ~/tmp/kons_profiles.tar.gz 
+   This command will export 'BS2' profiles thanks to your filter, ie BS2 in this exaple, and generates the 'exported_file', ie ~/tmp/kons_profiles.tar.gz
 
  - Importing data profiles from a PATH (Used from an SCM checkout for example)
    $(basename $0) <Filter> --import-data <PATH> [--username <profiles_username>] [--autossh]
@@ -158,7 +179,7 @@ There is 4 use cases: import, export, import-data and export-data.
    This command will export profiles data from selected. This is useful to update and checked out SCM project, like svn.
    Note that filename are based on a convention.
    '<username or 'USER'>-<serverName>.dat'
-   Syntax: 
+   Syntax:
    $(basename $0) <Filter> --export-data <export directory>
 
 [1m5. Change profiles information.[0m
@@ -167,7 +188,7 @@ $(basename $0) <Filter> --update [--noedit] [--app-code <app-code>] [--server <s
 By default the command will show you data in text table, and you can edit it. Any change will be written, as soon as you save and quit.
 Do not update the first column. Leading or trailing spaces will be suppressed for each column. So, you can update the file for readibility.
 
-You can avoid editing it using --noedit and do a massive update. 
+You can avoid editing it using --noedit and do a massive update.
 => At least one of 'app-code','server','user','categ','role','location','autossh','status','comment' have to be set in your list of parameters.
 
 The following examples show this 2 different behaviors.
@@ -183,7 +204,7 @@ Syntax:
 $(basename $0) --delete|--add <profileName>
 This is removing or adding just one profile at a time.
 
-or 
+or
 
 $(basename $0) <Filter> --mass-delete
 This is removing all profiles selected by the query. A confirmation will be sent before starting the removal process.
@@ -195,7 +216,7 @@ This will extract selected filtered profiles information and will generate a <cs
 
 [1m8. Sessions collection management.[0m
 5 actions possible:
-- create : Will create/update a session collection name which will be used to connect to several server, using --open. 
+- create : Will create/update a session collection name which will be used to connect to several server, using --open.
   $(basename $0) --collection --create <collection_name> <filter>
 - remove : Will delete a session collection name.
   $(basename $0) --collection --remove <collection_name>
@@ -211,7 +232,7 @@ This will extract selected filtered profiles information and will generate a <cs
 
 - import : Will import a kscz package (tar file containing several collections) to $(basename $0)
   $(basename $0) --collection --import <kscz FILE>
-- export : Will export a list of collection filtered by <Collections FILTER>, saved under <kscz FileName without extension> 
+- export : Will export a list of collection filtered by <Collections FILTER>, saved under <kscz FileName without extension>
   $(basename $0) --collection --export <kscz FileName without extension> <Collections FILTER>
 
 You can combine several options, like add or delete and open
@@ -219,7 +240,7 @@ Ex: $(basename $0) --collection BS_PRO_RCS --delete 'profile1' --delete 'profile
 This will delete 2 profiles from test, add one, and open the collection by opening konsole and log to all profile located in the collection.
 Another example:
 Ex: $(basename $0) --collection BS_PRO_RCS.1 --open --collection BS_PRO_RCS.2 --open --collection --BS_PRO_NGDC --open
-This will open 3 konsole windows 1 for each collection. 
+This will open 3 konsole windows 1 for each collection.
 
 " | more
 }
@@ -227,7 +248,7 @@ This will open 3 konsole windows 1 for each collection.
 function collection_mgt()
 {
 
- COLLECTIONS_PATH=~/.kde/share/apps/konsole/
+ COLLECTIONS_PATH=$KONSOLE_PROFILES
  while [ $# -gt 0 ]
  do
     case "p$1" in
@@ -237,10 +258,10 @@ function collection_mgt()
        then
           PWD_SAV="$(pwd)"
           TAR_FILE="$(basename "$1")"
-          cp $1 ~/.kde/share/apps/konsole/
+          cp $1 $KONSOLE_PROFILES
           if [ $? -eq 0 ]
           then
-             cd ~/.kde/share/apps/konsole/
+             cd $KONSOLE_PROFILES
              tar -xvzf "$TAR_FILE"
              echo "Package $1 imported."
              rm -f  "$TAR_FILE"
@@ -261,10 +282,10 @@ function collection_mgt()
           TAR_PATH="$(dirname "$1")"
           TAR_FILE="$(basename "$1").kscz"
           FILTER="$2"
-          cd ~/.kde/share/apps/konsole/
+          cd $KONSOLE_PROFILES
           eval "tar -cvzf '$TAR_FILE' $FILTER.ksc"
           cd "$PWD_SAV"
-          mv ~/.kde/share/apps/konsole/"$TAR_FILE" "$TAR_PATH"
+          mv $KONSOLE_PROFILES"$TAR_FILE" "$TAR_PATH"
           echo "Package $1.kscz exported."
           exit
        else
@@ -336,7 +357,7 @@ function collection_mgt()
           exit
        fi
        echo "$COLLECTIONS_PATH/$PROFILE.profile" >> "$COLLECTIONS_PATH/$COLLECTION.ksc"
-       echo "$COLLECTION updated. Profile '$PROFILE' added." 
+       echo "$COLLECTION updated. Profile '$PROFILE' added."
        ;;
      "p--delete")
        shift
@@ -359,7 +380,7 @@ function collection_mgt()
        fi
        grep -v -e "/$PROFILE.profile" "$COLLECTIONS_PATH/$COLLECTION.ksc" > "$COLLECTIONS_PATH/$COLLECTION.ksc".new
        mv "$COLLECTIONS_PATH/$COLLECTION.ksc".new "$COLLECTIONS_PATH/$COLLECTION.ksc"
-       echo "$COLLECTION updated. Profile '$PROFILE' deleted." 
+       echo "$COLLECTION updated. Profile '$PROFILE' deleted."
        ;;
      "p--remove")
        shift
@@ -412,7 +433,7 @@ function collection_mgt()
           ls -1 *.ksc | sed 's/\.ksc//g'
           exit
        fi
-       if [ "p$1" != "p--create" ] && [ "p$1" != "p--remove" ] && [ "p$1" != "p--import" ] && [ "p$1" != "p--export" ] 
+       if [ "p$1" != "p--create" ] && [ "p$1" != "p--remove" ] && [ "p$1" != "p--import" ] && [ "p$1" != "p--export" ]
        then
           if [ ! -f "$COLLECTIONS_PATH/$1.ksc" ]
           then
@@ -424,12 +445,12 @@ function collection_mgt()
           shift
        fi
        ;;
-     
+
      *)
        echo "$1 is not a valid option. canceled."
        exit
        ;;
-    esac 
+    esac
  done
  exit
 }
@@ -452,7 +473,7 @@ Right now, all following session are queriable:
 
 Press Enter to continue and get the complete list. Press Control-C to interrupt."
    read
-   cat ~/.kde/share/apps/konsole/*.profile | grep "Name="
+   cat $KONSOLE_PROFILES*.profile | grep "Name="
    exit
 fi
 
@@ -499,7 +520,7 @@ do
                LINE="$(cat $HOME/$PROF_PATH/saved.dat | grep -v -e '^#')"
             fi
             FORMAT="%3s|%15s|%4s|%4s|%4s|%5s|%30s|%25s|%15s|%s"
-      
+
             APP_NAME="$( dat_extract APP_NAME  "$LINE")"
             NAME="$(     dat_extract NAME      "$LINE")"
             CATEG="$(    dat_extract CATEG     "$LINE")"
@@ -516,7 +537,7 @@ do
             else
                printf "$FORMAT\n" "#Application?" "Name?" "Category?" "Role?" "Location?" "Status?" "Alias/Comments?" "Server?" "Account?" "connection tool?" > $HOME/$FILEDAT
                printf "$FORMAT" "$APP_NAME" "$NAME" "$CATEG" "$ROLE" "$LOCATION" "Created" "$COMMENT" "$SERVER" "$USER_NAME" "$CMD" >> $HOME/$FILEDAT
-               if [ -f ~/.kde/share/apps/konsole/"$2" ]
+               if [ -f $KONSOLE_PROFILES"$2" ]
                then
                   echo "The profile $2 already exist. Choose a new one."
                   exit
@@ -529,7 +550,7 @@ do
                PROFILE=$2
                FILEDAT="$(echo "$PROF_PATH/$PROFILE" | sed 's/\.profile$/.dat/g')"
             fi
-       
+
             if [ ! -f $HOME/$FILEDAT ]
             then
                printf "$FORMAT\n" "#Application?" "Name?" "Category?" "Role?" "Location?" "Status?" "Alias/Comments?" "Server?" "Account?" "connection tool?" > $HOME/$FILEDAT
@@ -537,7 +558,7 @@ do
             fi
             vim $HOME/$FILEDAT
             LINE="$(cat $HOME/$FILEDAT | grep -v -e '^#')"
-      
+
             # Application|Name|Category|Role|Location|Status|Alias/Comments|server|Account|connection tool|Profile Path|Profile file
             APP_NAME="$( dat_extract APP_NAME   "$LINE"| sed 's/^ *\([a-zA-Z0-9_-.]*\) *$/\1/g')"
             NAME="$(     dat_extract NAME       "$LINE"| sed 's/^ *\([a-zA-Z0-9_-.]*\) *$/\1/g')"
@@ -556,9 +577,9 @@ do
             fi
             sed 's/NAME/'"$APP_NAME: $SERVER ($CATEG,$ROLE,$LOCATION)"'/g
                  s/CMD/'"$CMD -X -C $USER_NAME@$SERVER"'/g' $HOME/$PROF_PATH/template.profile.tpl > "$HOME/$PROF_PATH/$PROFILE"
-         
+
             echo "$APP_NAME|$NAME|$CATEG|$ROLE|$LOCATION|$STATUS|$COMMENT|$SERVER|$USER_NAME|$CMD|$PROF_PATH|$PROFILE" > $HOME/$FILEDAT
-            echo "$APP_NAME|$NAME|$CATEG|$ROLE|$LOCATION|$STATUS|$COMMENT|$SERVER|$USER_NAME|$CMD|$PROF_PATH|$PROFILE" > $HOME/$PROF_PATH/saved.dat 
+            echo "$APP_NAME|$NAME|$CATEG|$ROLE|$LOCATION|$STATUS|$COMMENT|$SERVER|$USER_NAME|$CMD|$PROF_PATH|$PROFILE" > $HOME/$PROF_PATH/saved.dat
             echo "$PROFILE created."
             exit
             ;;
@@ -575,21 +596,21 @@ do
                echo "Option error. $1 need a valid value. $2 is an invalid value. Exiting."
                exit
             fi
-            shift 
-            shift 
+            shift
+            shift
             ;;
          "p--delete")
              shift
              while [ "p$(echo "$1" | cut -c1)" != "p-" ] && [ $# -gt 0 ]
              do
-                if [ -f ~/.kde/share/apps/konsole/"$1" ]
+                if [ -f $KONSOLE_PROFILES"$1" ]
                 then
                    echo "Press Enter to confirm the removal of '$1' or type 'n' to not remove it."
                    read ANS
                    if [ "$ANS" != "n" ] && [ "$ANS" != "N" ]
                    then
                       FILE="$(echo "$1" | sed 's/.profile$//g')"
-                      rm -vf ~/.kde/share/apps/konsole/"$FILE".*
+                      rm -vf $KONSOLE_PROFILES"$FILE".*
                    else
                       echo "$1 not removed."
                    fi
@@ -612,7 +633,7 @@ do
 done
 
 
-# All following options or behaviors comes from a filter based. 
+# All following options or behaviors comes from a filter based.
 
 FILTER="$1"
 
@@ -821,8 +842,8 @@ do
                echo "Option error. $1 need a valid value. $2 is an invalid value. Exiting."
                exit
             fi
-            shift 
-            shift 
+            shift
+            shift
             ;;
          "p--servers-only" )
               OPTFOUND=True
@@ -862,12 +883,12 @@ do
               exit
            fi
            DAT_EXPORT="$(cd "$DAT_EXPORT" ; pwd)"
-           Filter ~/.kde/share/apps/konsole/ "$FILTER" False True ~/.ssh_connection.dat
+           Filter $KONSOLE_PROFILES "$FILTER" False True ~/.ssh_connection.dat
            sort_information ~/.ssh_connection.dat ~/.ssh_connection.dats
            Details_output ~/.ssh_connection.dats
            echo "Please verify listed data and confirm it in pressing Enter key. Press Ctrl-C to interrupt."
            read
-           cd ~/.kde/share/apps/konsole
+           cd $KONSOLE_PROFILES
 
            # Copy dat files to DAT_EXPORT
            cat ~/.ssh_connection.dat | while read LINE
@@ -886,7 +907,7 @@ do
               cd "$DAT_EXPORT"
               tar -czf "$EXPORT_PATH/$PCK_NAME" .
               echo "$EXPORT_PATH/$PCK_NAME has been created."
-              cd 
+              cd
               rm -fr "$DAT_EXPORT"
            fi
            exit
@@ -900,8 +921,8 @@ do
               PCK_FILE="$(basename "$2")"
               FULL_PKG_PATH="$(cd $(dirname "$2") ; pwd)"
               EXPORTED_PATH="/tmp/$PCK_FILE"
-              mkdir -p "$EXPORTED_PATH" 
-              if [ ! -d "$EXPORTED_PATH" ] 
+              mkdir -p "$EXPORTED_PATH"
+              if [ ! -d "$EXPORTED_PATH" ]
               then
                  echo "Unable to expand $PCK_FILE temporary to $EXPORTED_PATH. Aborted."
                  exit 1
@@ -952,12 +973,12 @@ do
             Filter "$EXPORTED_PATH" "$FILTER" False True .ssh_connection.lst
             sort_information .ssh_connection.lst .ssh_connection.data
             Details_output .ssh_connection.data
-            echo "Please verify the previous list. These profiles will be configured with $USER account. 
+            echo "Please verify the previous list. These profiles will be configured with $USER account.
 Press Enter to import these profiles to your konsole. Or Ctrl-C to interrupt."
             read
             echo "Importing..."
             FILTER_IMPORT="$FILTER"
-            Filter ~/.kde/share/apps/konsole/ "" False True .ssh_connection.lst-orig
+            Filter $KONSOLE_PROFILES "" False True .ssh_connection.lst-orig
             cat .ssh_connection.lst | sed 's/USER/'"$USER"'/g'"$SSH_PROXY" | while read LINE
             do
                 SERVER="$(dat_extract SERVER "$LINE")"
@@ -981,13 +1002,13 @@ Press Enter to import these profiles to your konsole. Or Ctrl-C to interrupt."
                 CreateProfile True True "" "$LINE" "$SSH"
             done
             echo "Verification:"
-            Filter ~/.kde/share/apps/konsole/ "$FILTER_IMPORT" False True .ssh_connection.lst
+            Filter $KONSOLE_PROFILES "$FILTER_IMPORT" False True .ssh_connection.lst
             sort_information .ssh_connection.lst .ssh_connection.data
             Details_output .ssh_connection.data
             rm -f .ssh_connection.*
             if [ $IMPORT_PKG = True ] && [ -d "/tmp/$PCK_FILE" ]
             then
-               rm -fr "/tmp/$PCK_FILE" 
+               rm -fr "/tmp/$PCK_FILE"
             fi
             exit
             ;;
@@ -1006,7 +1027,7 @@ Press Enter to import these profiles to your konsole. Or Ctrl-C to interrupt."
              PAR="$PAR '$1'"
              shift
            done
-           eval "dat_edit ~/.kde/share/apps/konsole/ '$FILTER' True $PAR"
+           eval "dat_edit $KONSOLE_PROFILES '$FILTER' True $PAR"
 
            DETAILS="True"
            OPTFOUND=True
@@ -1031,7 +1052,7 @@ if [ "$SESSIONS_OPEN" = True ]
 then
    # -------------------------------------------------------------------------------------------- Open sessions
    > ~/.kons_tabs
-   Filter ~/.kde/share/apps/konsole/ "$FILTER" False True ~/.ssh_connection.lst
+   Filter $KONSOLE_PROFILES "$FILTER" False True ~/.ssh_connection.lst
    sort_information ~/.ssh_connection.lst ~/.ssh_connection.data
    Details_output ~/.ssh_connection.data
    echo "Do you confirm to start previously listed konsole sessions? (Ctrl-C to stop it.)"
@@ -1048,7 +1069,7 @@ then
       CMD="$(      dat_extract CMD            "$LINE")"
       PROF_PATH="$(dat_extract PROFILE_PATH   "$LINE")"
       PROFILE="$(  dat_extract PROFILE_FILE   "$LINE")"
-      
+
       COMMAND="$CMD -X -C $USER_NAME@$SERVER"
       PROFILE="$(echo "$LINE" | awk -F"|" '{ print $7}' )"
       echo "title:$APP_NAME-$SERVER;;command:$COMMAND" >> ~/.kons_tabs
@@ -1062,7 +1083,7 @@ fi
 if [ "$MASS_DELETE" = "" ] && [ "$INTER" != True ] && ( [ "$1" = "" ] || [ "$DETAILS" = "True" ] || [ "$MACHINE_ONLY" = "True" ] )
 then # Simple Query
    # Filtering
-   Filter ~/.kde/share/apps/konsole/ "$FILTER" False $DETAILS ~/.ssh_connection.lst
+   Filter $KONSOLE_PROFILES "$FILTER" False $DETAILS ~/.ssh_connection.lst
    # -------------------------------------------------------------------------------------------- Query
    if [ "$DETAILS" = "True" ]
    then
@@ -1081,7 +1102,7 @@ then # Simple Query
 else
    # -------------------------------------------------------------------------------------------- ssh or scp behavior.
    # Filtering
-   Filter ~/.kde/share/apps/konsole/ "$FILTER" False True ~/.ssh_connection.dat
+   Filter $KONSOLE_PROFILES "$FILTER" False True ~/.ssh_connection.dat
    sort_information ~/.ssh_connection.dat ~/.ssh_connection.data
    if [ "$GO_ON" != True ]
    then
@@ -1105,7 +1126,7 @@ else
             LINE="$(awk '{if (FNR == '$iCount' ) print $0}' ~/.ssh_connection.dat)"
             let "iCount++"
             FILE="$(dat_extract PROFILE_FILE "$LINE" | sed 's/\.profile//g')"
-            rm -vf ~/.kde/share/apps/konsole/"$FILE".*
+            rm -vf $KONSOLE_PROFILES"$FILE".*
          done
       fi
       exit
@@ -1124,7 +1145,7 @@ else
          echo "You are going to [1mscp files $DIRECT[0m these servers."
       fi
 
-   else 
+   else
       SCP=False
       if [ "$GO_ON" != True ]
       then
@@ -1141,7 +1162,7 @@ else
       echo "Please confirm, servers listed are correct before going on... Ctrl-C to interrupt."
       read
    fi
-  
+
    # Preparing command options
 
    PAR_SAVED=""
@@ -1189,7 +1210,7 @@ else
          if [ "$INTER" = True ]
          then
             echo "You are entering to interactive session to $i in few seconds. Type exit when done to enter to the next one..."
-            if [ "$PAR_SAVED" = "" ] 
+            if [ "$PAR_SAVED" = "" ]
             then
                $SSH $i
             else
