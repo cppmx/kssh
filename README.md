@@ -7,11 +7,10 @@ Massive ssh tools based on konsole (KDE) profiles
 - bash
 - konsole
 
-1. Copy sh/\* to your ~/bin/
+1. install kssh
 
     ```bash
-    $ mkdir -p ~/bin
-    $ cp sh/* ~/bin
+    $ ./install.sh
     ```
 
 2. Use it
