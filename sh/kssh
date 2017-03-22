@@ -1214,7 +1214,7 @@ else
       i="$( dat_extract USER_NAME       "$LINE")@$( dat_extract SERVER          "$LINE")"
       if [ "$SCP" = "False" ]
       then
-         SSH="$( dat_extract CMD             "$LINE")"
+         SSH="$( dat_extract CMD             "$LINE") -oStrictHostKeyChecking=no "
          # -------------------------------------------------------------------------------------------- ssh behavior.
          if [ "$INTER" = True ]
          then
@@ -1226,7 +1226,7 @@ else
                eval "$SSH -t $i $PAR_SAVED"
             fi
          else
-            ssh_add_rem_cmds "$i" "$SSH -CT $i $PAR_SAVED"
+            ssh_add_rem_cmds "$i" "$SSH -o BatchMode=yes -CT $i $PAR_SAVED"
          fi
          # --------------------------------------------------------------------------------------------
       else
