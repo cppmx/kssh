@@ -650,6 +650,109 @@ do
             echo "$(basename $0) version 0.1"
             exit
             ;;
+         "p--Black")
+            DETAILS=False
+            INTER=FALSE
+            MACHINE_ONLY=False
+            OPTFOUND=True
+            shift
+            HIGHLIGHT[30]="$1"
+            HIGHLIGHT[0]=True
+            shift
+            ;;
+         "p--Red")
+            DETAILS=False
+            INTER=FALSE
+            MACHINE_ONLY=False
+            OPTFOUND=True
+            shift
+            HIGHLIGHT[31]="$1"
+            HIGHLIGHT[0]=True
+            shift
+            ;;
+         "p--Green")
+            DETAILS=False
+            INTER=FALSE
+            MACHINE_ONLY=False
+            OPTFOUND=True
+            shift
+            HIGHLIGHT[32]="$1"
+            HIGHLIGHT[0]=True
+            shift
+            ;;
+         "p--Yellow")
+            DETAILS=False
+            INTER=FALSE
+            MACHINE_ONLY=False
+            OPTFOUND=True
+            shift
+            HIGHLIGHT[33]="$1"
+            HIGHLIGHT[0]=True
+            shift
+            ;;
+         "p--Blue")
+            DETAILS=False
+            INTER=FALSE
+            MACHINE_ONLY=False
+            OPTFOUND=True
+            shift
+            HIGHLIGHT[34]="$1"
+            HIGHLIGHT[0]=True
+            shift
+            ;;
+         "p--Magenta")
+            DETAILS=False
+            INTER=FALSE
+            MACHINE_ONLY=False
+            OPTFOUND=True
+            shift
+            HIGHLIGHT[35]="$1"
+            HIGHLIGHT[0]=True
+            shift
+            ;;
+         "p--Cyan")
+            DETAILS=False
+            INTER=FALSE
+            MACHINE_ONLY=False
+            OPTFOUND=True
+            shift
+            HIGHLIGHT[36]="$1"
+            HIGHLIGHT[0]=True
+            shift
+            ;;
+         "p--White")
+            DETAILS=False
+            INTER=FALSE
+            MACHINE_ONLY=False
+            OPTFOUND=True
+            shift
+            HIGHLIGHT[37]="$1"
+            HIGHLIGHT[0]=True
+            shift
+            ;;
+         "p--highlight")
+            shift
+            if [ "p$1" = "p--color" ]
+            then
+               shift
+               if [ "$1" -lt 30 ] || [ "$1" -gt 37 ]
+               then
+                  echo "Color code are invalid. Use between 30 to 37"
+               else
+                  HIGHLIGHT[$1]="$2"
+                  HIGHLIGHT[0]=True
+               fi
+               shift
+            else
+               HIGHLIGHT[1]="$1"
+               HIGHLIGHT[0]=True
+            fi
+            DETAILS=False
+            INTER=False
+            MACHINE_ONLY=False
+            OPTFOUND=True
+            shift
+            ;;
         "p--collection")
             shift
             collection_mgt "$@"
@@ -837,86 +940,6 @@ do
             OPTFOUND=True
             shift
             ;;
-         "p--Black")
-            DETAILS=False
-            INTER=FALSE
-            MACHINE_ONLY=False
-            OPTFOUND=True
-            shift
-            HIGHLIGHT[30]="$1"
-            HIGHLIGHT[0]=True
-            shift
-            ;;
-         "p--Red")
-            DETAILS=False
-            INTER=FALSE
-            MACHINE_ONLY=False
-            OPTFOUND=True
-            shift
-            HIGHLIGHT[31]="$1"
-            HIGHLIGHT[0]=True
-            shift
-            ;;
-         "p--Green")
-            DETAILS=False
-            INTER=FALSE
-            MACHINE_ONLY=False
-            OPTFOUND=True
-            shift
-            HIGHLIGHT[32]="$1"
-            HIGHLIGHT[0]=True
-            shift
-            ;;
-         "p--Yellow")
-            DETAILS=False
-            INTER=FALSE
-            MACHINE_ONLY=False
-            OPTFOUND=True
-            shift
-            HIGHLIGHT[33]="$1"
-            HIGHLIGHT[0]=True
-            shift
-            ;;
-         "p--Blue")
-            DETAILS=False
-            INTER=FALSE
-            MACHINE_ONLY=False
-            OPTFOUND=True
-            shift
-            HIGHLIGHT[34]="$1"
-            HIGHLIGHT[0]=True
-            shift
-            ;;
-         "p--Magenta")
-            DETAILS=False
-            INTER=FALSE
-            MACHINE_ONLY=False
-            OPTFOUND=True
-            shift
-            HIGHLIGHT[35]="$1"
-            HIGHLIGHT[0]=True
-            shift
-            ;;
-         "p--Cyan")
-            DETAILS=False
-            INTER=FALSE
-            MACHINE_ONLY=False
-            OPTFOUND=True
-            shift
-            HIGHLIGHT[36]="$1"
-            HIGHLIGHT[0]=True
-            shift
-            ;;
-         "p--White")
-            DETAILS=False
-            INTER=FALSE
-            MACHINE_ONLY=False
-            OPTFOUND=True
-            shift
-            HIGHLIGHT[37]="$1"
-            HIGHLIGHT[0]=True
-            shift
-            ;;
          "p--format")
             shift
             if [ "$DETAILS" != True ]
@@ -933,29 +956,6 @@ do
             OUTPUT_FIELDS="$2"
             OPTFOUND=True
             shift
-            shift
-            ;;
-         "p--highlight")
-            shift
-            if [ "p$1" = "p--color" ]
-            then
-               shift
-               if [ "$1" -lt 30 ] || [ "$1" -gt 37 ]
-               then
-                  echo "Color code are invalid. Use between 30 to 37"
-               else
-                  HIGHLIGHT[$1]="$2"
-                  HIGHLIGHT[0]=True
-               fi
-               shift
-            else
-               HIGHLIGHT[1]="$1"
-               HIGHLIGHT[0]=True
-            fi
-            DETAILS=False
-            INTER=False
-            MACHINE_ONLY=False
-            OPTFOUND=True
             shift
             ;;
          "p--save_log" )
