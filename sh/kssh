@@ -391,13 +391,12 @@ function ssh_or_scp()
 function collection_mgt()
 {
  COLLECTIONS_PATH=$HOME/$KONSOLE_PROFILES
- set -x
  if [ -f "$COLLECTIONS_PATH/$1.ksc" ]
  then
     COLLECTION="$1"
     shift
  fi
- set +x
+
  while [ $# -gt 0 ]
  do
     case "p$1" in
