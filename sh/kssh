@@ -390,7 +390,6 @@ function ssh_or_scp()
 
 function collection_mgt()
 {
-
  COLLECTIONS_PATH=$HOME/$KONSOLE_PROFILES
  while [ $# -gt 0 ]
  do
@@ -581,7 +580,7 @@ function collection_mgt()
           echo "$COLLECTION not created."
        fi
        ;;
-     "p--collection")
+     "p--show")
        shift
        if [ $# -eq 0 ]
        then
@@ -755,7 +754,12 @@ do
             ;;
         "p--collection")
             shift
-            collection_mgt "$@"
+	    if [ $# -eq 0 ]
+            then
+	       collection_mgt --show
+	    else
+               collection_mgt "$@"
+	    fi
             exit
             ;;
         "p--servers-only" )
