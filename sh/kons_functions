@@ -4,6 +4,20 @@
 
 FIELDS_MAX=13
 
+function SetDefaultValue
+{
+ for VALUE in $*
+ do
+    eval "VAR_VALUE=\$$VALUE"
+    if [ "$VAR_VALUE" = "" ]
+    then
+       dat_field_pos $VALUE
+       field=$?
+       SetValue --noprompt $VALUE "\$$field"
+    fi
+ done
+}
+
 function SetValue
 {
 # Common command line options to set data
@@ -16,7 +30,7 @@ else
    NOPROMPT=False
 fi
 case "p$1" in
-    p--app-code)
+    p--app-code | pAPP_NAME)
     shift
     if [ "$1" = "" ] && [ $NOPROMPT = False ]
     then
@@ -33,7 +47,7 @@ case "p$1" in
        APP_NAME="$1"
     fi
     ;;
-    p--server)
+    p--server | pSERVER)
     shift
     if [ "$1" = "" ] && [ $NOPROMPT = False ]
     then
@@ -42,12 +56,12 @@ case "p$1" in
     else
        SERVER="$1"
     fi
-    while [ "$SERVER" = "" ] || [ "$(host "$SERVER")" = "not found" ] || [ "$(konsole_massive_ssh_connect $SERVER | wc -l)" -gt 1 ]
+    while [ "$SERVER" = "" ] || [ "$(host "$SERVER")" = "not found" ] || [ "$(kssh $SERVER | wc -l)" -gt 1 ]
     do
-       if [ "$(konsole_massive_ssh_connect $SERVER | wc -l)" -gt 1 ]
+       if [ "$(kssh $SERVER | wc -l)" -gt 1 ]
        then
           echo "The server $SERVER already exist in konsole profiles."
-          konsole_massive_ssh_connect --details $SERVER
+          kssh --details $SERVER
        else
           echo "You have to enter a valid and HP DNS declared server name."
        fi
@@ -64,7 +78,7 @@ case "p$1" in
        fi
     done
     ;;
-    p--user)
+    p--user | pUSER_NAME)
     shift
     if [ "$1" = "" ] && [ $NOPROMPT = False ]
     then
@@ -80,7 +94,7 @@ case "p$1" in
        USER_NAME="$1"
     fi
     ;;
-    p--categ)
+    p--categ | pCATEG)
     shift
     if [ "$1" = "" ] && [ $NOPROMPT = False ]
     then
@@ -96,7 +110,7 @@ case "p$1" in
        CATEG="$1"
     fi
     ;;
-    p--role)
+    p--role | pROLE)
     shift
     if [ "$1" = "" ] && [ $NOPROMPT = False ]
     then
@@ -112,7 +126,7 @@ case "p$1" in
        ROLE="$1"
     fi
     ;;
-    p--location)
+    p--location | pLOCATION)
     shift
     if [ "$1" = "" ] && [ $NOPROMPT = False ]
     then
@@ -128,6 +142,12 @@ case "p$1" in
        LOCATION="$1"
     fi
     ;;
+
+    pCMD)
+    shift
+    CMD="$1"
+    ;;
+
     p--autossh)
     shift
     if [ "$1" = "" ] && [ $NOPROMPT = False ]
@@ -142,14 +162,20 @@ case "p$1" in
     else
        PROXY="$1"
     fi
-    CMD=ssh
+    CMD="ssh"
     case $PROXY in
       "Yes" | "Y" | "yes" | "y" )
-        CMD=autossh
+        CMD="autossh"
         ;;
     esac
     ;;
-    p--status)
+
+    pCMD_OPTS)
+    shift
+    CMD_OPTS="$1"
+    ;;
+
+    p--status | pSTATUS)
     shift
     if [ "$1" = "" ] && [ $NOPROMPT = False ]
     then
@@ -165,7 +191,7 @@ case "p$1" in
        STATUS="$1"
     fi
     ;;
-    p--comment)
+    p--comment | pCOMMENT )
     shift
     if [ "$1" = "" ] && [ $NOPROMPT = False ]
     then
@@ -178,8 +204,7 @@ case "p$1" in
     fi
     ;;
     *)
-    echo "$(echo $1| cut -c 2-) is not a recognized option."
-    help
+    echo "$1 is not a recognized option."
     return 1
     ;;
 esac
@@ -626,7 +651,7 @@ function dat_edit()
        EDITOR=""
        shift
     else
-       SetValue --noprompt $1 $2
+       SetValue --noprompt $1 "\"$2\""
        [ $? -eq 1 ] && exit
        VALUE=FOUND
        shift;shift
@@ -639,15 +664,21 @@ function dat_edit()
      exit 1
  fi
 
+ # Setting Default values
+ SetDefaultValue APP_NAME SERVER USER_NAME CATEG ROLE LOCATION CMD CMD_OPTS STATUS COMMENT
+
  # Generation of list of profiles
  OUTPUT_FORMAT='%40s|%8s|%30s|%15s|%5s|%5s|%5s|%12s|%15s|%7s|%s'
  echo "Do NOT update this column|app-code|server|user|categ|role|locat|connect tool|flags|status|comment" |  awk -F'|' '
 { printf "'"$OUTPUT_FORMAT"'\n",$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11 }' > ~/.profiles.lst
  echo "------------------------------------------------------------------------------------------------------------">> ~/.profiles.lst
+ 
+ # Generating an automated ~/.profiles.lst
+ awk -F"|" '{ printf "'"$OUTPUT_FORMAT"'\n",$12,'"$APP_NAME"','"$SERVER"','"$USER_NAME"','"$CATEG"','"$ROLE"','"$LOCATION"','"$CMD"','"$CMD_OPTS"','"$STATUS"','"$COMMENT"' }' ~/.profiles.dat >> ~/.profiles.lst
+ 
  if [ "$EDITOR" != "" ]
  then
     # Need to provide a readable output
-    awk -F'|' ' { printf "'"$OUTPUT_FORMAT"'\n",$12,$1,$8,$9,$3,$4,$5,$10,$13,$6,$7 }' ~/.profiles.dat >> ~/.profiles.lst
     echo "You are going to edit some profiles information.
 Do not update the first column. All other column can be updated. The two first lines are simply ignored.
 Trailing or leading spaces in column are ignored.
@@ -662,9 +693,6 @@ Press enter to edit now."
        rm -f ~/.profiles.lst ~/.profiles.dat
        exit 1
     fi
- else
-    # Generating an automated ~/.profiles.lst
-    awk -F"|" '{ printf "'"$OUTPUT_FORMAT"'\n",$11,'"$APP_NAME"','"$SERVER"','"$USER_NAME"','"$CATEG"','"$ROLE"','"$LOCATION"','"$CMD"','"$CMD_OPTS"','"$STATUS"','"'$COMMENT'"' }' ~/.profiles.lst
  fi
  echo "Processing..."
  #     1            2    3        4    5        6      7              8      9       10              11           12           13    14          15       16     17   18    19   20    21           22    23     24

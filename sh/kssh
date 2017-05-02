@@ -1188,17 +1188,11 @@ Press Enter to import these profiles to your konsole. Or Ctrl-C to interrupt."
            ;;
 # ---------------------------------------------------------------------------------- Update
          "p--update")
-           # Building edit Parameters.
-           PAR=""
-           while [ $# -ne 0 ]
-           do
-             PAR="$PAR '$1'"
-             shift
-           done
-           eval "dat_edit $HOME/$KONSOLE_PROFILES '$FILTER' True $PAR"
+           dat_edit $HOME/$KONSOLE_PROFILES "$FILTER" True "$@"
 
            DETAILS="True"
            OPTFOUND=True
+	   break
            ;;
       esac
       if [ "$OPTFOUND" != True ]
