@@ -391,6 +391,11 @@ function ssh_or_scp()
 function collection_mgt()
 {
  COLLECTIONS_PATH=$HOME/$KONSOLE_PROFILES
+ if [ -f "$1" ]
+ then
+    COLLECTION="$1"
+    shift
+ fi
  while [ $# -gt 0 ]
  do
     case "p$1" in
