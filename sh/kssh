@@ -310,11 +310,12 @@ function ssh_or_scp()
     do
        if [ "${HIGHLIGHT[$i]}" != "" ]
        then
+	  highlight_str="$( echo "${HIGHLIGHT[$i]}"| sed 's|/|\\/|g')"
           if [ $i -eq 1 ]
           then
-             echo 's/\('"${HIGHLIGHT[$i]}"'\)/[1m\1[0m/g' >> $TMPDIR/sed.cmd
+             echo 's/\('"$highlight_str"'\)/[1m\1[0m/g' >> $TMPDIR/sed.cmd
           else
-             echo 's/\('"${HIGHLIGHT[$i]}"'\)/[1;'"$i"'m\1[0m/g' >> $TMPDIR/sed.cmd
+             echo 's/\('"$highlight_str"'\)/[1;'"$i"'m\1[0m/g' >> $TMPDIR/sed.cmd
           fi
        fi
     done
