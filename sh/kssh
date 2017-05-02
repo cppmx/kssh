@@ -547,13 +547,11 @@ function collection_mgt()
        ;;
      "p--run")
        shift
-       if [ ! -f "$COLLECTIONS_PATH/$1.ksc" ]
+       if [ "$COLLECTION" = "" ]
        then
-          echo "$1 is not a known collection in $COLLECTIONS_PATH"
+          echo "Collection name is not specified. Please add the collection name before the action."
           exit
        fi
-       COLLECTION=$1
-       shift
        CollectionFilter "$COLLECTIONS_PATH/$COLLECTION.ksc" True ~/.ssh_connection.dat
        sort_information ~/.ssh_connection.dat ~/.ssh_connection.data
        Details_output ~/.ssh_connection.data
