@@ -70,7 +70,7 @@ There is 8 ways to use this tool. This will be explained in details just below.
   $(basename $0) <Grep Filter> --extract [options]
 - 7. konsole sessions collection management
   This command will help you to open sessions to several servers in parallel, automatically.
-  $(basename $0) --collection <--open|--create|--remove|--add|--delete|--import|--export> [options]
+  $(basename $0) --collection <--open|--create|--remove|--add|--delete|--import|--export|--run> [options]
 
 Details:
 -------
@@ -231,6 +231,8 @@ This will extract selected filtered profiles information and will generate a <cs
   --title-awkfmt help to fix tabs title from sessions data.
   \$1 to \$12 are session information fields that can be used as followed:
   $(HelpDatStruct)
+- run    : Will ssh a command or scp files from/to collection servers.
+  $(basename $0) --collection --run <kscz FILE> <ssh command|scp (<files> SERVER:<path> | SERVER:<file> <path>)>
 
 - import : Will import a kscz package (tar file containing several collections) to $(basename $0)
   $(basename $0) --collection --import <kscz FILE>
@@ -247,6 +249,143 @@ This will open 3 konsole windows 1 for each collection.
 Extra parameters:
 --version : To show out $(basename $0) script version.
 " | more
+}
+
+
+function ssh_or_scp()
+{
+ FILTER_FILE="$1"
+ shift
+ if [ "$(echo "$*" | grep SERVER: )" != "" ]
+ then
+    SCP=True
+    if [ "$(echo "$PAR1" | grep SERVER:)" = "" ]
+    then
+       DIRECT="from"
+    else
+       DIRECT="to"
+    fi
+    if [ "$INTER" = 'True' ]
+    then
+       echo "You are going to [1mscp files $DIRECT[0m these servers."
+    fi
+
+ else
+    SCP=False
+    if [ "$GO_ON" != True ]
+    then
+       if [ "$INTER" = 'True' ]
+       then
+          echo "You are requesting to [1mhave interactive access[0m to these servers in series."
+       else
+          echo "You are going to [1mexecute remote commands[0m to these servers in parallel."
+       fi
+    fi
+ fi
+ if [ "$GO_ON" != True ]
+ then
+    echo "Please confirm, servers listed are correct before going on... Ctrl-C to interrupt."
+    read
+ fi
+
+ # Preparing command options
+
+ PAR_SAVED=""
+ PAR1="$1"
+ PAR2="$2"
+ while [ $# -ne 0 ]
+ do
+   PAR_SAVED="$PAR_SAVED \"$1\""
+   shift
+ done
+
+ # Preparing sed highlight feature (for parallel remote commands)
+ TMPDIR=/tmp/$$_kons_exe
+ if [ "${HIGHLIGHT[0]}" = "True" ]
+ then
+    mkdir -p $TMPDIR
+    touch $TMPDIR/sed.cmd
+    # Build the highlight sed string.
+    for i in 1 30 31 32 33 34 35 36 37
+    do
+       if [ "${HIGHLIGHT[$i]}" != "" ]
+       then
+          if [ $i -eq 1 ]
+          then
+             echo 's/\('"${HIGHLIGHT[$i]}"'\)/[1m\1[0m/g' >> $TMPDIR/sed.cmd
+          else
+             echo 's/\('"${HIGHLIGHT[$i]}"'\)/[1;'"$i"'m\1[0m/g' >> $TMPDIR/sed.cmd
+          fi
+       fi
+    done
+ fi
+
+
+ NUM_SERVERS=$(cat $FILTER_FILE | wc -l)
+ iCount=1
+ while [ $iCount -le $NUM_SERVERS ]
+ do
+    LINE="$(awk '{if (FNR == '$iCount' ) print $0}' $FILTER_FILE)"
+    let "iCount++"
+    i="$( dat_extract USER_NAME       "$LINE")@$( dat_extract SERVER          "$LINE")"
+    if [ "$SCP" = "False" ]
+    then
+       SSH="$( dat_extract CMD             "$LINE") -oStrictHostKeyChecking=no "
+       # -------------------------------------------------------------------------------------------- ssh behavior.
+       if [ "$INTER" = True ]
+       then
+          echo "You are entering to interactive session to $i in few seconds. Type exit when done to enter to the next one..."
+          if [ "$PAR_SAVED" = "" ]
+          then
+             $SSH $i
+          else
+             eval "$SSH -t $i $PAR_SAVED"
+          fi
+       else
+          ssh_add_rem_cmds "$i" "$SSH -o BatchMode=yes -CT $i $PAR_SAVED"
+       fi
+       # --------------------------------------------------------------------------------------------
+    else
+       # -------------------------------------------------------------------------------------------- scp behavior.
+       if [ "$(echo "$PAR1" | grep SERVER:)" = "" ]
+       then
+          PAR="$(echo "$PAR_SAVED" | sed 's/SERVER:/'$i':/g')"
+       else
+          if [ $NUM_SERVERS -gt 1 ]
+          then
+             if [ -d "$PAR2" ]
+             then
+                DEST="$PAR2"/$i-$(basename $PAR1)
+             else
+                DEST="$(dirname "$PAR2")/$i-$(basename $PAR2)"
+             fi
+          else
+             DEST="$PAR2"
+          fi
+          PAR="$(echo \"$PAR1\" \"$DEST\" | sed 's/SERVER:/'$i':/g')"
+       fi
+       if [ "$SILENT" != True ]
+       then
+          echo "Starting : scp -p $PAR"
+          (eval "scp -p $PAR";echo $i done) &
+       else
+          (eval "scp -qp $PAR") &
+       fi
+    fi
+ done
+ if [ "$SCP" = "True" ]
+ then
+    ps -aef | grep "[0-9] 'scp -p'"
+    while [ "$(ps -aef | grep "[0-9] scp")" != "" ]
+    do
+       sleep 1
+    done
+    # --------------------------------------------------------------------------------------------
+ else
+    # Only execute if remote commands has been added.
+    ssh_run
+    ssh_show
+ fi
 }
 
 function collection_mgt()
@@ -400,6 +539,21 @@ function collection_mgt()
        rm -f "$COLLECTIONS_PATH/$COLLECTION.ksc"
        echo "$COLLECTIONS_PATH/$COLLECTION.ksc removed."
        ;;
+     "p--run")
+       shift
+       if [ ! -f "$COLLECTIONS_PATH/$1.ksc" ]
+       then
+          echo "$1 is not a known collection in $COLLECTIONS_PATH"
+          exit
+       fi
+       COLLECTION=$1
+       shift
+       CollectionFilter "$COLLECTIONS_PATH/$COLLECTION.ksc" True ~/.ssh_connection.dat
+       sort_information ~/.ssh_connection.dat ~/.ssh_connection.data
+       Details_output ~/.ssh_connection.data
+       ssh_or_scp ~/.ssh_connection.dat "$@"
+       exit
+       ;;
      "p--create")
        shift
        if [ -f "$COLLECTIONS_PATH/$1.ksc" ]
@@ -497,12 +651,8 @@ do
             exit
             ;;
         "p--collection")
-            while [ $# -ne 0 ]
-            do
-              PAR="$PAR '$1'"
-              shift
-            done
-            eval "collection_mgt $PAR"
+            shift
+            collection_mgt "$@"
             exit
             ;;
         "p--servers-only" )
@@ -1109,7 +1259,7 @@ then # Simple Query
    fi
    # --------------------------------------------------------------------------------------------
 else
-   # -------------------------------------------------------------------------------------------- ssh or scp behavior.
+   # -------------------------------------------------------------------------------------------- delete, ssh or scp behavior.
    # Filtering
    Filter $HOME/$KONSOLE_PROFILES "$FILTER" False True ~/.ssh_connection.dat
    sort_information ~/.ssh_connection.dat ~/.ssh_connection.data
@@ -1119,6 +1269,7 @@ else
    fi
    if [ "$MASS_DELETE" = "True" ]
    then
+      # ------------------------------------------------------------------------------------------ delete
       NUM_SERVERS=$(cat ~/.ssh_connection.dat | wc -l)
       if [ "$NUM_SERVERS" -eq 0 ]
       then
@@ -1139,137 +1290,10 @@ else
          done
       fi
       exit
-   fi
-   if [ "$(echo "$*" | grep SERVER: )" != "" ]
-   then
-      SCP=True
-      if [ "$(echo "$PAR1" | grep SERVER:)" = "" ]
-      then
-         DIRECT="from"
-      else
-         DIRECT="to"
-      fi
-      if [ "$INTER" = 'True' ]
-      then
-         echo "You are going to [1mscp files $DIRECT[0m these servers."
-      fi
-
-   else
-      SCP=False
-      if [ "$GO_ON" != True ]
-      then
-         if [ "$INTER" = 'True' ]
-         then
-            echo "You are requesting to [1mhave interactive access[0m to these servers in series."
-         else
-            echo "You are going to [1mexecute remote commands[0m to these servers in parallel."
-         fi
-      fi
-   fi
-   if [ "$GO_ON" != True ]
-   then
-      echo "Please confirm, servers listed are correct before going on... Ctrl-C to interrupt."
-      read
+      # ------------------------------------------------------------------------------------------
    fi
 
-   # Preparing command options
-
-   PAR_SAVED=""
-   PAR1="$1"
-   PAR2="$2"
-   while [ $# -ne 0 ]
-   do
-     PAR_SAVED="$PAR_SAVED \"$1\""
-     shift
-   done
-
-   # Preparing sed highlight feature (for parallel remote commands)
-   TMPDIR=/tmp/$$_kons_exe
-   if [ "${HIGHLIGHT[0]}" = "True" ]
-   then
-      mkdir -p $TMPDIR
-      touch $TMPDIR/sed.cmd
-      # Build the highlight sed string.
-      for i in 1 30 31 32 33 34 35 36 37
-      do
-         if [ "${HIGHLIGHT[$i]}" != "" ]
-         then
-            if [ $i -eq 1 ]
-            then
-               echo 's/\('"${HIGHLIGHT[$i]}"'\)/[1m\1[0m/g' >> $TMPDIR/sed.cmd
-            else
-               echo 's/\('"${HIGHLIGHT[$i]}"'\)/[1;'"$i"'m\1[0m/g' >> $TMPDIR/sed.cmd
-            fi
-         fi
-      done
-   fi
-
-
-   NUM_SERVERS=$(cat ~/.ssh_connection.dat | wc -l)
-   iCount=1
-   while [ $iCount -le $NUM_SERVERS ]
-   do
-      LINE="$(awk '{if (FNR == '$iCount' ) print $0}' ~/.ssh_connection.dat)"
-      let "iCount++"
-      i="$( dat_extract USER_NAME       "$LINE")@$( dat_extract SERVER          "$LINE")"
-      if [ "$SCP" = "False" ]
-      then
-         SSH="$( dat_extract CMD             "$LINE") -oStrictHostKeyChecking=no "
-         # -------------------------------------------------------------------------------------------- ssh behavior.
-         if [ "$INTER" = True ]
-         then
-            echo "You are entering to interactive session to $i in few seconds. Type exit when done to enter to the next one..."
-            if [ "$PAR_SAVED" = "" ]
-            then
-               $SSH $i
-            else
-               eval "$SSH -t $i $PAR_SAVED"
-            fi
-         else
-            ssh_add_rem_cmds "$i" "$SSH -o BatchMode=yes -CT $i $PAR_SAVED"
-         fi
-         # --------------------------------------------------------------------------------------------
-      else
-         # -------------------------------------------------------------------------------------------- scp behavior.
-         if [ "$(echo "$PAR1" | grep SERVER:)" = "" ]
-         then
-            PAR="$(echo "$PAR_SAVED" | sed 's/SERVER:/'$i':/g')"
-         else
-            if [ $NUM_SERVERS -gt 1 ]
-            then
-               if [ -d "$PAR2" ]
-               then
-                  DEST="$PAR2"/$i-$(basename $PAR1)
-               else
-                  DEST="$(dirname "$PAR2")/$i-$(basename $PAR2)"
-               fi
-            else
-               DEST="$PAR2"
-            fi
-            PAR="$(echo \"$PAR1\" \"$DEST\" | sed 's/SERVER:/'$i':/g')"
-         fi
-         if [ "$SILENT" != True ]
-         then
-            echo "Starting : scp -p $PAR"
-            (eval "scp -p $PAR";echo $i done) &
-         else
-            (eval "scp -qp $PAR") &
-         fi
-      fi
-   done
-   if [ "$SCP" = "True" ]
-   then
-      ps -aef | grep "[0-9] 'scp -p'"
-      while [ "$(ps -aef | grep "[0-9] scp")" != "" ]
-      do
-         sleep 1
-      done
-      # --------------------------------------------------------------------------------------------
-   else
-      # Only execute if remote commands has been added.
-      ssh_run
-      ssh_show
-   fi
+   ssh_or_scp ~/.ssh_connection.dat "$@"
 fi
 if [ "$TMPDIR" != "" ]
 then

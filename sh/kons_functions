@@ -186,6 +186,23 @@ esac
 
 }
 
+function CollectionFilter()
+{
+ PROFILES="$1"
+ # $2 = True if the output is the detailed one
+ OUTPUT_FILE="$3"
+
+ if [ ! -f $PROFILES ]
+ then
+    echo "Unable to find $PROFILES"
+    return
+ fi
+ for PROFILE in $(cat $PROFILES)
+ do
+    ProfileFilter $PROFILE $2
+ done > $OUTPUT_FILE
+}
+
 function Filter()
 {
 # List of parameters
@@ -205,71 +222,78 @@ find $PATH_SEARCH -name \*.profile -exec grep "$FILTER" '{}' \; -print -o -name 
 do
    FILE="$(echo "$LINE" | sed 's/\.dat$/.profile/g')"
    FILEDAT="$(echo "$LINE" | sed 's/\.profile$/.dat/g')"
-   if [ -f "$FILEDAT" ]
-   then
-      DAT="$(cat "$FILEDAT")"
-   fi
    if [ "$EXPORT_OUTPUT" = "True" ]
    then
       echo "$FILE"
    else
-      if [ "$DETAILS_OUTPUT" = "True" ]
-      then
-         if [ -f "$FILEDAT" ]
-         then
-            SSH_CONNECT="$DAT"
-         else
-            SSH_NAME="$(grep Name "$FILE" | sed 's/Name=//g
-                                                 s/ (\([?a-zA-Z]*\),\([?a-zA-Z]*\),\([?a-zA-Z]*\)) - \(.*\)/|\1|\2|\3|N\/D|\4|/g
-                                                 s/ (\([?a-zA-Z]*\),\([?a-zA-Z]*\),\([?a-zA-Z]*\))/|\1|\2|\3|N\/D||/g
-                                                 s/\( (\|: \)/|/g
-                                                 s/) - \(.*\)/|\1|/g
-                                                 s/)/||/g' )"
-
-            GetInfoFromCmd "$FILE"
-            # Result are in $SERVER_NAME $USER_NAME $SSH_COMMAND $SSH_COMMAND_OPTS - COMMAND should not be empty.
-            if [ "$COMMAND" = "" ]
-            then
-               continue
-            fi
-            SSH_CONNECT="$SSH_NAME$SERVER_NAME|$USER_NAME|$SSH_COMMAND|$(dirname "$FILE" | sed 's|'$HOME/'||g')|$(basename "$FILE")|$SSH_COMMAND_OPTS"
-         fi
-         CUR_NUM=$(echo "$SSH_CONNECT" | awk -F"|" '{ print NF }')
-         if [ "$CUR_NUM" -ge $FIELDS_MAX ]
-         then
-            echo "$SSH_CONNECT"
-         else
-           # Trying to convert old format"
-           case "$CUR_NUM" in
-               10)
-                  echo "$SSH_CONNECT|||"
-                  ;;
-               12)
-                  echo "$SSH_CONNECT|"
-                  ;;
-               *)
-                  # Application|Name|Category|Role|Location|Status|Alias/Comments|server|Account|connection tool|Profile Path|Profile file|ssh/autossh options
-                  echo "??|??|??|??|??|??|KSSH: Data format $CUR_NUM not supported.|??|??|??|??|$(basename $FILE)|??|??"
-                  ;;
-           esac
-         fi
-      else
-         if [ -f "$FILEDAT" ]
-         then
-            SSH_CONNECT="$(dat_extract "USER_NAME" "$DAT")@$(dat_extract "SERVER" "$DAT")"
-         else
-            GetInfoFromCmd "$FILE"
-            # Result are in $SERVER_NAME $USER_NAME $SSH_COMMAND $SSH_COMMAND_OPTS - COMMAND should not be empty.
-            if [ "$COMMAND" = "" ]
-            then
-               continue
-            fi
-            SSH_CONNECT="$USER_NAME@$SERVER_NAME"
-         fi
-         echo $SSH_CONNECT
-      fi
+      ProfileFilter $FILE $DETAILS_OUTPUT
    fi
 done | sort -u > $OUTPUT_FILE
+}
+
+function ProfileFilter()
+{
+ FILE="$(echo "$1" | sed 's/\.dat$/.profile/g')"
+ FILEDAT="$(echo "$1" | sed 's/\.profile$/.dat/g')"
+ if [ -f "$FILEDAT" ]
+ then
+    DAT="$(cat "$FILEDAT")"
+ fi
+ if [ "$2" = "True" ]
+ then
+    if [ -f "$FILEDAT" ]
+    then
+       SSH_CONNECT="$DAT"
+    else
+       SSH_NAME="$(grep Name "$FILE" | sed 's/Name=//g
+                                            s/ (\([?a-zA-Z]*\),\([?a-zA-Z]*\),\([?a-zA-Z]*\)) - \(.*\)/|\1|\2|\3|N\/D|\4|/g
+                                            s/ (\([?a-zA-Z]*\),\([?a-zA-Z]*\),\([?a-zA-Z]*\))/|\1|\2|\3|N\/D||/g
+                                            s/\( (\|: \)/|/g
+                                            s/) - \(.*\)/|\1|/g
+                                            s/)/||/g' )"
+
+       GetInfoFromCmd "$FILE"
+       # Result are in $SERVER_NAME $USER_NAME $SSH_COMMAND $SSH_COMMAND_OPTS - COMMAND should not be empty.
+       if [ "$COMMAND" = "" ]
+       then
+          continue
+       fi
+       SSH_CONNECT="$SSH_NAME$SERVER_NAME|$USER_NAME|$SSH_COMMAND|$(dirname "$FILE" | sed 's|'$HOME/'||g')|$(basename "$FILE")|$SSH_COMMAND_OPTS"
+    fi
+    CUR_NUM=$(echo "$SSH_CONNECT" | awk -F"|" '{ print NF }')
+    if [ "$CUR_NUM" -ge $FIELDS_MAX ]
+    then
+       echo "$SSH_CONNECT"
+    else
+      # Trying to convert old format"
+      case "$CUR_NUM" in
+          10)
+             echo "$SSH_CONNECT|||"
+             ;;
+          12)
+             echo "$SSH_CONNECT|"
+             ;;
+          *)
+             # Application|Name|Category|Role|Location|Status|Alias/Comments|server|Account|connection tool|Profile Path|Profile file|ssh/autossh options
+             echo "??|??|??|??|??|??|KSSH: Data format $CUR_NUM not supported.|??|??|??|??|$(basename $FILE)|??|??"
+             ;;
+      esac
+    fi
+ else
+    if [ -f "$FILEDAT" ]
+    then
+       SSH_CONNECT="$(dat_extract "USER_NAME" "$DAT")@$(dat_extract "SERVER" "$DAT")"
+    else
+       GetInfoFromCmd "$FILE"
+       # Result are in $SERVER_NAME $USER_NAME $SSH_COMMAND $SSH_COMMAND_OPTS - COMMAND should not be empty.
+       if [ "$COMMAND" = "" ]
+       then
+          continue
+       fi
+       SSH_CONNECT="$USER_NAME@$SERVER_NAME"
+    fi
+    echo $SSH_CONNECT
+ fi
 }
 
 function GetInfoFromCmd()
