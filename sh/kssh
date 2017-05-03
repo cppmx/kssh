@@ -332,18 +332,19 @@ function ssh_or_scp()
     if [ "$SCP" = "False" ]
     then
        SSH="$( dat_extract CMD             "$LINE") -oStrictHostKeyChecking=no "
+       SSH_OPTS="$( dat_extract CMD_OPTS   "$LINE")"
        # -------------------------------------------------------------------------------------------- ssh behavior.
        if [ "$INTER" = True ]
        then
           echo "You are entering to interactive session to $i in few seconds. Type exit when done to enter to the next one..."
           if [ "$PAR_SAVED" = "" ]
           then
-             $SSH $i
+             $SSH $SSH_OPTS $i
           else
-             eval "$SSH -t $i $PAR_SAVED"
+             eval "$SSH -t $SSH_OPTS $i $PAR_SAVED"
           fi
        else
-          ssh_add_rem_cmds "$i" "$SSH -o BatchMode=yes -CT $i $PAR_SAVED"
+          ssh_add_rem_cmds "$i" "$SSH -o BatchMode=yes -CT $SSH_OPTS $i $PAR_SAVED"
        fi
        # --------------------------------------------------------------------------------------------
     else
