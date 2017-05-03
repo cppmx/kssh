@@ -808,7 +808,7 @@ function ssh_run()
  for i in *.new
  do
     SERVER="$(echo $i | sed 's/.new$//g')"
-    ssh_run_rem_cmd $SERVER &
+    ssh_run_rem_cmd $SERVER < /dev/null &
  done
 }
 
@@ -834,6 +834,7 @@ Executing : $(cat $1.new)
     else
        echo "ERROR DETECTED: [1,31m$RET[0m" > $SERVER.status
     fi
+    echo $RET > $SERVER.error
  else
     if [ "$SHORT" != True ]
     then
@@ -895,6 +896,27 @@ function ssh_show()
        fi
     done
  else
+    if [ "$SUMMARY" = True ]
+    then
+       iError=0
+       iNormal=0
+       for i in *.started
+       do
+         SERVER_NAME=$(echo $i | sed 's/\.started$//g')
+         if [ -f ${SERVER_NAME}.error ]
+         then
+            let "iError++"
+            printf "[\e[31;1mFAILED\e[0m] $SERVER_NAME\n"
+         else
+            let "iNormal++"
+            printf "[  \e[32;1mOK\e[0m  ] $SERVER_NAME\n"
+         fi
+       done
+       echo "
+* $iError in error"
+       echo "* $iNormal in success."
+       exit
+    fi
     if [ -f sed.cmd ]
     then
       cat *.started | sed -f sed.cmd

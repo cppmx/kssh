@@ -344,7 +344,7 @@ function ssh_or_scp()
              eval "$SSH -t $SSH_OPTS $i $PAR_SAVED"
           fi
        else
-          ssh_add_rem_cmds "$i" "$SSH -o BatchMode=yes -CT $SSH_OPTS $i $PAR_SAVED"
+          ssh_add_rem_cmds "$i" "$SSH -o BatchMode=yes -Ctt $SSH_OPTS $i $PAR_SAVED"
        fi
        # --------------------------------------------------------------------------------------------
     else
@@ -960,7 +960,15 @@ do
             shift
             ;;
          "p--short")
+            SUMMARY=False
             SHORT=True
+            INTER=False
+            OPTFOUND=True
+            shift
+            ;;
+         "p--summary")
+            SUMMARY=True
+            SHORT=False
             INTER=False
             OPTFOUND=True
             shift
