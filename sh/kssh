@@ -784,12 +784,12 @@ do
             shift
             ;;
         "p--add")
-            PROF_PATH=".kde/share/apps/konsole/"
-            if [ -f $HOME/$KONSOLE_PROFILES/saved.dat ]
+            PROF_PATH=$HOME/$KONSOLE_PROFILES
+            if [ -f $PROF_PATH/saved.dat ]
             then
-               LINE="$(cat $HOME/$KONSOLE_PROFILES/saved.dat | grep -v -e '^#')"
+               LINE="$(cat $PROF_PATH/saved.dat | grep -v -e '^#')"
             fi
-            FORMAT="%3s|%15s|%4s|%4s|%4s|%5s|%30s|%25s|%15s|%s"
+            FORMAT="%4s|%15s|%4s|%4s|%4s|%7s|%30s|%25s|%15s|%s"
 
             APP_NAME="$( dat_extract APP_NAME  "$LINE")"
             NAME="$(     dat_extract NAME      "$LINE")"
@@ -800,6 +800,7 @@ do
             SERVER="$(   dat_extract SERVER    "$LINE")"
             USER_NAME="$(dat_extract USER_NAME "$LINE")"
             CMD="$(      dat_extract CMD       "$LINE")"
+
             if [ "$USER_NAME" = "" ]
             then
                USER_NAME=$(id -un)
@@ -808,34 +809,48 @@ do
             then
                APP_NAME="PERS"
             fi
+            if [ "$CMD" = "" ]
+            then
+               CMD="ssh"
+            fi
+
+            DATA_TITLE="$(printf "$FORMAT\n" "#App" "Name" "Cat" "Role" "Loc" "Status" "Alias/Comments" "Server" "Account" "connect tool")"
+
             if [ "$2" = "" ]
             then
-               PROFILE_TMP=prof.tmp
-               FILEDAT="$(echo "$PROF_PATH/$PROFILE_TMP" | sed 's/\.profile$/.dat/g')"
+               FILEDAT="$PROF_PATH/prof.tmp"
             else
-               printf "$FORMAT\n" "#Application?" "Name?" "Category?" "Role?" "Location?" "Status?" "Alias/Comments?" "Server?" "Account?" "connection tool?" > $HOME/$FILEDAT
-               printf "$FORMAT" "$APP_NAME" "$NAME" "$CATEG" "$ROLE" "$LOCATION" "Created" "$COMMENT" "$SERVER" "$USER_NAME" "$CMD" >> $HOME/$FILEDAT
-               if [ -f $HOME/$KONSOLE_PROFILES"$2" ]
-               then
-                  echo "The profile $2 already exist. Choose a new one."
-                  exit
-               fi
-               if [ "$(echo "$2" | grep '\.profile$')" = "" ]
+               PROFILE=$2
+               FILEDAT="$(echo "$PROF_PATH/$PROFILE" | sed 's/\.profile$/.dat/g')"
+               if [ "$(echo "$PROFILE" | grep '\.profile$')" = "" ]
                then
                   echo "Please add the extension .profile to your profile name."
                   exit
                fi
-               PROFILE=$2
-               FILEDAT="$(echo "$PROF_PATH/$PROFILE" | sed 's/\.profile$/.dat/g')"
+               if [ -f "$FILEDAT" ]
+               then
+                  echo "The profile '$PROFILE' already exist in '$PROF_PATH'. Choose a new one."
+                  exit
+               fi
+               NAME="$(echo "$PROFILE" | sed 's/\.profile$//g')"
             fi
-
-            if [ ! -f $HOME/$FILEDAT ]
-            then
-               printf "$FORMAT\n" "#Application?" "Name?" "Category?" "Role?" "Location?" "Status?" "Alias/Comments?" "Server?" "Account?" "connection tool?" > $HOME/$FILEDAT
-               printf "$FORMAT" "$APP_NAME" "$NAME" "$CATEG" "$ROLE" "$LOCATION" "Created" "$COMMENT" "$SERVER" "$USER_NAME" "$CMD" >> $HOME/$FILEDAT
-            fi
-            vim $HOME/$FILEDAT
-            LINE="$(cat $HOME/$FILEDAT | grep -v -e '^#')"
+            echo "# Please update each column to create your profile. A server name is mandatory to create the profile." > $FILEDAT
+            echo "#" >> $FILEDAT
+            echo "# App : 4 Bytes - Define the profile application name relation." >> $FILEDAT
+            echo "# Name : Define the profile name." >> $FILEDAT
+            echo "# cat : 4 Bytes - Define the profile category name. Very common: PRO, ITG, DEV" >> $FILEDAT
+            echo "# role : 4 Bytes - Define the profile role name. Very common: WEB, APP,..." >> $FILEDAT
+            echo "# loc : 4 Bytes - Define the profile location name. Very common: HOU, IND, FTC, ..." >> $FILEDAT
+            echo "# status : 6 Bytes - Define the profile status name. Usually refer to the server status in apate.." >> $FILEDAT
+            echo "# alias/comment : Free text. Usually, we store the server alias name." >> $FILEDAT
+            echo "# server : The real server name." >> $FILEDAT
+            echo "# account : The account used to connect to the server name." >> $FILEDAT
+            echo "# connect tool : The tool to connect to the remote server. ssh is the default. autossh is another example." >> $FILEDAT
+            echo "#" >> $FILEDAT
+            echo "$DATA_TITLE" >> $FILEDAT
+            printf "$FORMAT" "$APP_NAME" "$NAME" "$CATEG" "$ROLE" "$LOCATION" "Created" "$COMMENT" "$SERVER" "$USER_NAME" "$CMD" >> $FILEDAT
+            vim $FILEDAT
+            LINE="$(cat $FILEDAT | grep -v -e '^#')"
 
             # Application|Name|Category|Role|Location|Status|Alias/Comments|server|Account|connection tool|Profile Path|Profile file
             APP_NAME="$( dat_extract APP_NAME   "$LINE"| sed 's/^ *\([a-zA-Z0-9_-.]*\) *$/\1/g')"
@@ -859,10 +874,10 @@ do
                FILEDAT="$(echo "$PROF_PATH/$PROFILE" | sed 's/\.profile$/.dat/g')"
             fi
             sed 's/NAME/'"$APP_NAME: $SERVER ($CATEG,$ROLE,$LOCATION)"'/g
-                 s/CMD/'"$CMD -X -C $USER_NAME@$SERVER"'/g' $HOME/$PROF_PATH/template.profile.tpl > "$HOME/$PROF_PATH/$PROFILE"
+                 s/CMD/'"$CMD -X -C $USER_NAME@$SERVER"'/g' $KONSOLE_PROFILES_TEMPLATES/template.profile.tpl > "$PROF_PATH/$PROFILE"
 
-            echo "$APP_NAME|$NAME|$CATEG|$ROLE|$LOCATION|$STATUS|$COMMENT|$SERVER|$USER_NAME|$CMD|$PROF_PATH|$PROFILE" > $HOME/$FILEDAT
-            echo "$APP_NAME|$NAME|$CATEG|$ROLE|$LOCATION|$STATUS|$COMMENT|$SERVER|$USER_NAME|$CMD|$PROF_PATH|$PROFILE" > $HOME/$PROF_PATH/saved.dat
+            echo "$APP_NAME|$NAME|$CATEG|$ROLE|$LOCATION|$STATUS|$COMMENT|$SERVER|$USER_NAME|$CMD|$PROF_PATH|$PROFILE" > $FILEDAT
+            echo "$APP_NAME|$NAME|$CATEG|$ROLE|$LOCATION|$STATUS|$COMMENT|$SERVER|$USER_NAME|$CMD|$PROF_PATH|$PROFILE" > $PROF_PATH/saved.dat
             echo "$PROFILE created."
             exit
             ;;
