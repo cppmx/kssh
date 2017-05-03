@@ -785,9 +785,9 @@ do
             ;;
         "p--add")
             PROF_PATH=".kde/share/apps/konsole/"
-            if [ -f $HOME/$PROF_PATH/saved.dat ]
+            if [ -f $HOME/$KONSOLE_PROFILES/saved.dat ]
             then
-               LINE="$(cat $HOME/$PROF_PATH/saved.dat | grep -v -e '^#')"
+               LINE="$(cat $HOME/$KONSOLE_PROFILES/saved.dat | grep -v -e '^#')"
             fi
             FORMAT="%3s|%15s|%4s|%4s|%4s|%5s|%30s|%25s|%15s|%s"
 
@@ -800,6 +800,14 @@ do
             SERVER="$(   dat_extract SERVER    "$LINE")"
             USER_NAME="$(dat_extract USER_NAME "$LINE")"
             CMD="$(      dat_extract CMD       "$LINE")"
+            if [ "$USER_NAME" = "" ]
+            then
+               USER_NAME=$(id -un)
+            fi
+            if [ "$APP_NAME" = "" ]
+            then
+               APP_NAME="PERS"
+            fi
             if [ "$2" = "" ]
             then
                PROFILE_TMP=prof.tmp
@@ -840,6 +848,11 @@ do
             SERVER="$(   dat_extract SERVER     "$LINE"| sed 's/^ *\([a-zA-Z0-9_-.]*\) *$/\1/g')"
             USER_NAME="$(dat_extract USER_NAME  "$LINE"| sed 's/^ *\([a-zA-Z0-9_-.]*\) *$/\1/g')"
             CMD="$(      dat_extract CMD        "$LINE"| sed 's/^ *\([a-zA-Z0-9_-.]*\) *$/\1/g')"
+            if [ "$SERVER" = "" ]
+            then
+               echo "Unable to create the profile, without at least a server name."
+               exit 1
+            fi
             if [ "$PROFILE" = "" ]
             then
                PROFILE="${USER_NAME}-${SERVER}.profile"
