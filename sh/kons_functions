@@ -170,7 +170,7 @@ case "p$1" in
     esac
     ;;
 
-    pCMD_OPTS)
+    p--ssh-options | pCMD_OPTS)
     shift
     CMD_OPTS="$1"
     ;;
