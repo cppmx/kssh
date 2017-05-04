@@ -93,7 +93,7 @@ This example will show you all BS application, PRO or ITG servers selected.
 This example will show you all BS application, PRO or ITG servers selected in details. Note that the option '--details' can be set before the filter option
     $(basename $0) [1m--details[0m \"-e BS.*PRO -e BS.*ITG\"
 
-[1m2. Execute Same commands on several servers[0m
+[1m2. Execute same commands on several servers[0m
 Syntax: $(basename $0) <Filter> [--silent|--go-on] [-i|--interactive|--highlight <string>] [--short] [--save_log <dir> [--no-output]] <Command> [Par1] [...]
 
 Options are:
@@ -219,23 +219,32 @@ This will extract selected filtered profiles information and will generate a <cs
 [1m8. Sessions collection management.[0m
 5 actions possible:
 - create : Will create/update a session collection name which will be used to connect to several server, using --open.
-  $(basename $0) --collection --create <collection_name> <filter>
-- remove : Will delete a session collection name.
-  $(basename $0) --collection --remove <collection_name>
+  $(basename $0) --collection --create [-f] <collection_name> <filter>
+  Specify -f to re-create an existing one. No warning printed.
+
+- delete : Will delete a session collection name.
+  $(basename $0) --collection --delete [-y] <collection_name> [...]
+  Specify -y to force removing the collection. No warning printed.
+
 - add    : Will add a konsole profile to an existing collection name.
   $(basename $0) --collection <collection_name> --add <profile name>
-- delete : Will delete a session from the collection name.
-  $(basename $0) --collection <collection_name> --delete <profile name>
+
+- remove : Will delete a session from the collection name.
+  $(basename $0) --collection <collection_name> --remove  <profile name>
+
 - open   : Will start a konsole window, and load all konsole sessions in tabs associated to the konsole session collection name.
   $(basename $0) --collection <collection_name> [--title-awkfmt 'Awk Instructions'] --open
   --title-awkfmt help to fix tabs title from sessions data.
   \$1 to \$12 are session information fields that can be used as followed:
   $(HelpDatStruct)
+
 - run    : Will ssh a command or scp files from/to collection servers.
-  $(basename $0) --collection --run <kscz FILE> <ssh command|scp (<files> SERVER:<path> | SERVER:<file> <path>)>
+  $(basename $0) --collection <Collection> --run [RunOptions] (<command> [parameters] | <files> SERVER:<path> | SERVER:<file> <path>)
+  <RunOptions> are those defined by 'Execute same commands on several servers' use case.
 
 - import : Will import a kscz package (tar file containing several collections) to $(basename $0)
   $(basename $0) --collection --import <kscz FILE>
+
 - export : Will export a list of collection filtered by <Collections FILTER>, saved under <kscz FileName without extension>
   $(basename $0) --collection --export <kscz FileName without extension> <Collections FILTER>
 
@@ -256,6 +265,144 @@ function ssh_or_scp()
 {
  FILTER_FILE="$1"
  shift
+
+ # Get run related flags
+ NEXTPAR=False
+ SERVONLY=False
+ DETAILS=False
+ MACHINE_ONLY=False
+
+ while [ $# -ne 0 ] && [ "$NEXTPAR" = False ]
+ do
+     if [ "$(echo "p$1" | cut -c1-2)" = "p-" ]
+     then
+          case "p$1" in
+             "p--Black")
+                DETAILS=False
+                INTER=FALSE
+                MACHINE_ONLY=False
+                shift
+                HIGHLIGHT[30]="$1"
+                HIGHLIGHT[0]=True
+                shift
+                ;;
+             "p--Red")
+                DETAILS=False
+                INTER=FALSE
+                MACHINE_ONLY=False
+                shift
+                HIGHLIGHT[31]="$1"
+                HIGHLIGHT[0]=True
+                shift
+                ;;
+             "p--Green")
+                DETAILS=False
+                INTER=FALSE
+                MACHINE_ONLY=False
+                shift
+                HIGHLIGHT[32]="$1"
+                HIGHLIGHT[0]=True
+                shift
+                ;;
+             "p--Yellow")
+                DETAILS=False
+                INTER=FALSE
+                MACHINE_ONLY=False
+                shift
+                HIGHLIGHT[33]="$1"
+                HIGHLIGHT[0]=True
+                shift
+                ;;
+             "p--Blue")
+                DETAILS=False
+                INTER=FALSE
+                MACHINE_ONLY=False
+                shift
+                HIGHLIGHT[34]="$1"
+                HIGHLIGHT[0]=True
+                shift
+                ;;
+             "p--Magenta")
+                DETAILS=False
+                INTER=FALSE
+                MACHINE_ONLY=False
+                shift
+                HIGHLIGHT[35]="$1"
+                HIGHLIGHT[0]=True
+                shift
+                ;;
+             "p--Cyan")
+                DETAILS=False
+                INTER=FALSE
+                MACHINE_ONLY=False
+                shift
+                HIGHLIGHT[36]="$1"
+                HIGHLIGHT[0]=True
+                shift
+                ;;
+             "p--White")
+                DETAILS=False
+                INTER=FALSE
+                MACHINE_ONLY=False
+                shift
+                HIGHLIGHT[37]="$1"
+                HIGHLIGHT[0]=True
+                shift
+                ;;
+             "p--highlight")
+                shift
+                if [ "p$1" = "p--color" ]
+                then
+                   shift
+                   if [ "$1" -lt 30 ] || [ "$1" -gt 37 ]
+                   then
+                      echo "Color code are invalid. Use between 30 to 37"
+                   else
+                      HIGHLIGHT[$1]="$2"
+                      HIGHLIGHT[0]=True
+                   fi
+                   shift
+                else
+                   HIGHLIGHT[1]="$1"
+                   HIGHLIGHT[0]=True
+                fi
+                DETAILS=False
+                INTER=False
+                MACHINE_ONLY=False
+                shift
+                ;;
+             "p--short")
+                SUMMARY=False
+                SHORT=True
+                INTER=False
+                shift
+                ;;
+             "p--summary")
+                SUMMARY=True
+                SHORT=False
+                INTER=False
+                shift
+                ;;
+             "p--go-on")
+                GO_ON=True
+                INTER=False
+                shift
+                ;;
+             "p--silent")
+                SILENT=True
+                GO_ON=True
+                INTER=False
+                shift
+                ;;
+             *)
+                NEXTPAR=True
+                ;;
+          esac
+     else
+        NEXTPAR=True
+     fi
+ done
+
  if [ "$(echo "$*" | grep SERVER: )" != "" ]
  then
     SCP=True
@@ -509,19 +656,24 @@ function collection_mgt()
        echo "$COLLECTIONS_PATH/$PROFILE.profile" >> "$COLLECTIONS_PATH/$COLLECTION.ksc"
        echo "$COLLECTION updated. Profile '$PROFILE' added."
        ;;
-     "p--delete")
+     "p--remove")
        shift
        if [ "$COLLECTION" = "" ]
        then
-          echo "Collection name is not specified. Please add the colection name before the action."
-          exit
+          echo "Collection name is not specified. Please add the collection name before the action."
+          exit 1
+       fi
+       PROFILE="$1"
+       if [ "$PROFILE" = "" ]
+       then
+          echo "A profile to remove from the collection $COLLECTION is required."
+          exit 1
        fi
        if [ ! -f "$COLLECTIONS_PATH/$1.profile" ]
        then
           echo "Profile $1 is not found. Query kons_exe with --details to get the konsole profile name to delete."
           exit
        fi
-       PROFILE=$1
        shift
        if [ "$(grep "/$PROFILE.profile" "$COLLECTIONS_PATH/$COLLECTION.ksc")" = "" ]
        then
@@ -532,19 +684,39 @@ function collection_mgt()
        mv "$COLLECTIONS_PATH/$COLLECTION.ksc".new "$COLLECTIONS_PATH/$COLLECTION.ksc"
        echo "$COLLECTION updated. Profile '$PROFILE' deleted."
        ;;
-     "p--remove")
+     "p--delete")
        shift
-       if [ ! -f "$COLLECTIONS_PATH/$1.ksc" ]
+       if [ "p$1" = "p-y" ]
        then
-          echo "$1 is not a known collection in $COLLECTIONS_PATH"
-          exit
+          YES_DEFAULT=True
+          shift
+       else
+          YES_DEFAULT=False
        fi
-       COLLECTION=$1
-       shift
-       echo "You are going to remove a collection. Please press Enter to confirm."
-       read
-       rm -f "$COLLECTIONS_PATH/$COLLECTION.ksc"
-       echo "$COLLECTIONS_PATH/$COLLECTION.ksc removed."
+       for COLLECTION in $*
+       do
+           if [ "${COLLECTION:1:1}" = "p-" ]
+           then
+              break
+           fi
+           shift
+           if [ ! -f "$COLLECTIONS_PATH/$COLLECTION.ksc" ]
+           then
+              echo "$COLLECTION is not a known collection in $COLLECTIONS_PATH"
+              continue
+           fi
+           if [ $YES_DEFAULT = False ]
+           then
+              echo "You are going to remove $COLLECTION collection. Type Yes to confirm."
+              read ANS
+              if [ "$ANS" != Yes ]
+              then
+                 continue
+              fi
+           fi
+           rm -f "$COLLECTIONS_PATH/$COLLECTION.ksc"
+           echo "$COLLECTIONS_PATH/$COLLECTION.ksc removed."
+       done
        ;;
      "p--run")
        shift
@@ -561,7 +733,15 @@ function collection_mgt()
        ;;
      "p--create")
        shift
-       if [ -f "$COLLECTIONS_PATH/$1.ksc" ]
+       if [ "p$1" = "p-f" ]
+       then
+          YES_DEFAULT=True
+          shift
+       else
+          YES_DEFAULT=False
+       fi
+
+       if [ -f "$COLLECTIONS_PATH/$1.ksc" ] && [ $YES_DEFAULT = False ]
        then
           echo "$1 is a known collection in $COLLECTIONS_PATH. Replace it? Type Yes to replace."
           read ANSWER
@@ -655,117 +835,14 @@ do
             echo "$(basename $0) version 0.1"
             exit
             ;;
-         "p--Black")
-            DETAILS=False
-            INTER=FALSE
-            MACHINE_ONLY=False
-            OPTFOUND=True
-            shift
-            HIGHLIGHT[30]="$1"
-            HIGHLIGHT[0]=True
-            shift
-            ;;
-         "p--Red")
-            DETAILS=False
-            INTER=FALSE
-            MACHINE_ONLY=False
-            OPTFOUND=True
-            shift
-            HIGHLIGHT[31]="$1"
-            HIGHLIGHT[0]=True
-            shift
-            ;;
-         "p--Green")
-            DETAILS=False
-            INTER=FALSE
-            MACHINE_ONLY=False
-            OPTFOUND=True
-            shift
-            HIGHLIGHT[32]="$1"
-            HIGHLIGHT[0]=True
-            shift
-            ;;
-         "p--Yellow")
-            DETAILS=False
-            INTER=FALSE
-            MACHINE_ONLY=False
-            OPTFOUND=True
-            shift
-            HIGHLIGHT[33]="$1"
-            HIGHLIGHT[0]=True
-            shift
-            ;;
-         "p--Blue")
-            DETAILS=False
-            INTER=FALSE
-            MACHINE_ONLY=False
-            OPTFOUND=True
-            shift
-            HIGHLIGHT[34]="$1"
-            HIGHLIGHT[0]=True
-            shift
-            ;;
-         "p--Magenta")
-            DETAILS=False
-            INTER=FALSE
-            MACHINE_ONLY=False
-            OPTFOUND=True
-            shift
-            HIGHLIGHT[35]="$1"
-            HIGHLIGHT[0]=True
-            shift
-            ;;
-         "p--Cyan")
-            DETAILS=False
-            INTER=FALSE
-            MACHINE_ONLY=False
-            OPTFOUND=True
-            shift
-            HIGHLIGHT[36]="$1"
-            HIGHLIGHT[0]=True
-            shift
-            ;;
-         "p--White")
-            DETAILS=False
-            INTER=FALSE
-            MACHINE_ONLY=False
-            OPTFOUND=True
-            shift
-            HIGHLIGHT[37]="$1"
-            HIGHLIGHT[0]=True
-            shift
-            ;;
-         "p--highlight")
-            shift
-            if [ "p$1" = "p--color" ]
-            then
-               shift
-               if [ "$1" -lt 30 ] || [ "$1" -gt 37 ]
-               then
-                  echo "Color code are invalid. Use between 30 to 37"
-               else
-                  HIGHLIGHT[$1]="$2"
-                  HIGHLIGHT[0]=True
-               fi
-               shift
-            else
-               HIGHLIGHT[1]="$1"
-               HIGHLIGHT[0]=True
-            fi
-            DETAILS=False
-            INTER=False
-            MACHINE_ONLY=False
-            OPTFOUND=True
-            shift
-            ;;
         "p--collection")
             shift
-	    if [ $# -eq 0 ]
-            then
-	       collection_mgt --show
-	    else
-               collection_mgt "$@"
-	    fi
+            if [ $# -eq 0 ]
+                then
+               collection_mgt --show
+            else
+                   collection_mgt "$@"
+            fi
             exit
             ;;
         "p--servers-only" )
@@ -956,33 +1033,6 @@ do
             INTER=True
             SILENT=False
             MACHINE_ONLY=False
-            OPTFOUND=True
-            shift
-            ;;
-         "p--short")
-            SUMMARY=False
-            SHORT=True
-            INTER=False
-            OPTFOUND=True
-            shift
-            ;;
-         "p--summary")
-            SUMMARY=True
-            SHORT=False
-            INTER=False
-            OPTFOUND=True
-            shift
-            ;;
-         "p--go-on")
-            GO_ON=True
-            INTER=False
-            OPTFOUND=True
-            shift
-            ;;
-         "p--silent")
-            SILENT=True
-            GO_ON=True
-            INTER=False
             OPTFOUND=True
             shift
             ;;
