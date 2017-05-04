@@ -748,7 +748,7 @@ function collection_mgt()
        else
           ANSWER="Yes"
        fi
-       if [ $# -ne 2 ]
+       if [ $# -lt 2 ]
        then
           echo "You need to provide the new collection name and a filter."
           exit
@@ -765,6 +765,7 @@ function collection_mgt()
        else
           echo "$COLLECTION not created."
        fi
+       echo
        ;;
      "p--show")
        shift
