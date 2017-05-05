@@ -22,12 +22,10 @@ fi
 
 if [ "$KONSOLE_PROFILES" = "" ] && [ -d $HOME/.local/share/konsole/ ]
 then
-   echo "Detected KDE4 konsole profiles..."
    KONSOLE_PROFILES=.local/share/konsole/
 fi
 if [ "$KONSOLE_PROFILES" = "" ] && [ -d $HOME/.kde/share/apps/konsole ]
 then
-  echo "Detected KDE3 konsole profiles..."
   KONSOLE_PROFILES=.kde/share/apps/konsole/
 fi
 
