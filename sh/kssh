@@ -626,7 +626,7 @@ function collection_mgt()
           else
              PROFILE="$(echo "$CMD" | sed 's/^.* \([a-z0-9]*@.*\)/\1/g')"
           fi
-          echo "title:$PROFILE;;command:$CMD" >> ~/.kons_tabs
+          echo "title:$PROFILE;;profile:$PROFILE" >> ~/.kons_tabs
        done
        konsole --tabs-from-file ~/.kons_tabs --new-tab
        sleep 1
