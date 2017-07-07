@@ -844,12 +844,11 @@ Press Enter to continue and get the complete list. Press Control-C to interrupt.
    exit
 fi
 
-NEXTPAR=False
 SERVONLY=False
 DETAILS=False
 MACHINE_ONLY=False
 
-while [ $# -ne 0 ] && [ "$NEXTPAR" = False ]
+while [ $# -ne 0 ]
 do
    OPTFOUND=False
    if [ "$(echo "p$1" | cut -c1-2)" = "p-" ]
@@ -1028,7 +1027,7 @@ do
          exit
       fi
    else
-      NEXTPAR=True
+      break
    fi
 done
 
@@ -1039,9 +1038,7 @@ FILTER="$1"
 
 shift
 
-NEXTPAR=False
-
-while [ $# -ne 0 ] && [ "$NEXTPAR" = False ]
+while [ $# -ne 0 ]
 do
    OPTFOUND=False
    if [ "$(echo "p$1" | cut -c1-2)" = "p-" ]
@@ -1310,7 +1307,7 @@ Press Enter to import these profiles to your konsole. Or Ctrl-C to interrupt."
             RET=$?
             if [ ${RET} -eq 0 ]
             then
-               NEXTPAR=True # No more flags => Break flag loop
+               break # No more flags => Break flag loop
             fi
             if [ ${RET} -eq -1 ]
             then
@@ -1321,6 +1318,7 @@ Press Enter to import these profiles to your konsole. Or Ctrl-C to interrupt."
               shift
               let "RET--"
             done
+            OPTFOUND=True
             ;;
       esac
       if [ "$OPTFOUND" != True ]
@@ -1329,7 +1327,7 @@ Press Enter to import these profiles to your konsole. Or Ctrl-C to interrupt."
          exit
       fi
    else
-      NEXTPAR=True # No more flags => Break flag loop
+      break # No more flags => Break flag loop
    fi
 done
 
