@@ -258,6 +258,141 @@ Extra parameters:
 " | more
 }
 
+function ssh_or_scp_pars()
+{
+ case "p$1" in
+     "p--Black")
+        DETAILS=False
+        INTER=FALSE
+        MACHINE_ONLY=False
+        shift
+        HIGHLIGHT[30]="$1"
+        HIGHLIGHT[0]=True
+        shift
+        return 2
+        ;;
+     "p--Red")
+        DETAILS=False
+        INTER=FALSE
+        MACHINE_ONLY=False
+        shift
+        HIGHLIGHT[31]="$1"
+        HIGHLIGHT[0]=True
+        shift
+        return 2
+        ;;
+     "p--Green")
+        DETAILS=False
+        INTER=FALSE
+        MACHINE_ONLY=False
+        shift
+        HIGHLIGHT[32]="$1"
+        HIGHLIGHT[0]=True
+        shift
+        return 2
+        ;;
+     "p--Yellow")
+        DETAILS=False
+        INTER=FALSE
+        MACHINE_ONLY=False
+        shift
+        HIGHLIGHT[33]="$1"
+        HIGHLIGHT[0]=True
+        shift
+        return 2
+        ;;
+     "p--Blue")
+        DETAILS=False
+        INTER=FALSE
+        MACHINE_ONLY=False
+        shift
+        HIGHLIGHT[34]="$1"
+        HIGHLIGHT[0]=True
+        shift
+        return 2
+        ;;
+     "p--Magenta")
+        DETAILS=False
+        INTER=FALSE
+        MACHINE_ONLY=False
+        shift
+        HIGHLIGHT[35]="$1"
+        HIGHLIGHT[0]=True
+        shift
+        return 2
+        ;;
+     "p--Cyan")
+        DETAILS=False
+        INTER=FALSE
+        MACHINE_ONLY=False
+        shift
+        HIGHLIGHT[36]="$1"
+        HIGHLIGHT[0]=True
+        shift
+        return 2
+        ;;
+     "p--White")
+        DETAILS=False
+        INTER=FALSE
+        MACHINE_ONLY=False
+        shift
+        HIGHLIGHT[37]="$1"
+        HIGHLIGHT[0]=True
+        shift
+        return 2
+        ;;
+     "p--highlight")
+        shift
+        DETAILS=False
+        INTER=False
+        MACHINE_ONLY=False
+        if [ "p$1" = "p--color" ]
+        then
+           shift
+           if [ "$1" -lt 30 ] || [ "$1" -gt 37 ]
+           then
+              echo "Color code are invalid. Use between 30 to 37"
+              return -1
+           fi
+           HIGHLIGHT[$1]="$2"
+           HIGHLIGHT[0]=True
+           shift
+           return 3
+        fi
+        HIGHLIGHT[1]="$1"
+        HIGHLIGHT[0]=True
+        shift
+        return 2
+        ;;
+     "p--short")
+        SUMMARY=False
+        SHORT=True
+        INTER=False
+        shift
+        return 1
+        ;;
+     "p--summary")
+        SUMMARY=True
+        SHORT=False
+        INTER=False
+        shift
+        return 1
+        ;;
+     "p--go-on")
+        GO_ON=True
+        INTER=False
+        shift
+        return 1
+        ;;
+     "p--silent")
+        SILENT=True
+        GO_ON=True
+        INTER=False
+        shift
+        return 1
+        ;;
+ esac
+}
 
 function ssh_or_scp()
 {
@@ -265,139 +400,29 @@ function ssh_or_scp()
  shift
 
  # Get run related flags
- NEXTPAR=False
  SERVONLY=False
  DETAILS=False
  MACHINE_ONLY=False
 
- while [ $# -ne 0 ] && [ "$NEXTPAR" = False ]
+
+ while [ $# -ne 0 ]
  do
      if [ "$(echo "p$1" | cut -c1-2)" = "p-" ]
      then
-          case "p$1" in
-             "p--Black")
-                DETAILS=False
-                INTER=FALSE
-                MACHINE_ONLY=False
-                shift
-                HIGHLIGHT[30]="$1"
-                HIGHLIGHT[0]=True
-                shift
-                ;;
-             "p--Red")
-                DETAILS=False
-                INTER=FALSE
-                MACHINE_ONLY=False
-                shift
-                HIGHLIGHT[31]="$1"
-                HIGHLIGHT[0]=True
-                shift
-                ;;
-             "p--Green")
-                DETAILS=False
-                INTER=FALSE
-                MACHINE_ONLY=False
-                shift
-                HIGHLIGHT[32]="$1"
-                HIGHLIGHT[0]=True
-                shift
-                ;;
-             "p--Yellow")
-                DETAILS=False
-                INTER=FALSE
-                MACHINE_ONLY=False
-                shift
-                HIGHLIGHT[33]="$1"
-                HIGHLIGHT[0]=True
-                shift
-                ;;
-             "p--Blue")
-                DETAILS=False
-                INTER=FALSE
-                MACHINE_ONLY=False
-                shift
-                HIGHLIGHT[34]="$1"
-                HIGHLIGHT[0]=True
-                shift
-                ;;
-             "p--Magenta")
-                DETAILS=False
-                INTER=FALSE
-                MACHINE_ONLY=False
-                shift
-                HIGHLIGHT[35]="$1"
-                HIGHLIGHT[0]=True
-                shift
-                ;;
-             "p--Cyan")
-                DETAILS=False
-                INTER=FALSE
-                MACHINE_ONLY=False
-                shift
-                HIGHLIGHT[36]="$1"
-                HIGHLIGHT[0]=True
-                shift
-                ;;
-             "p--White")
-                DETAILS=False
-                INTER=FALSE
-                MACHINE_ONLY=False
-                shift
-                HIGHLIGHT[37]="$1"
-                HIGHLIGHT[0]=True
-                shift
-                ;;
-             "p--highlight")
-                shift
-                if [ "p$1" = "p--color" ]
-                then
-                   shift
-                   if [ "$1" -lt 30 ] || [ "$1" -gt 37 ]
-                   then
-                      echo "Color code are invalid. Use between 30 to 37"
-                   else
-                      HIGHLIGHT[$1]="$2"
-                      HIGHLIGHT[0]=True
-                   fi
-                   shift
-                else
-                   HIGHLIGHT[1]="$1"
-                   HIGHLIGHT[0]=True
-                fi
-                DETAILS=False
-                INTER=False
-                MACHINE_ONLY=False
-                shift
-                ;;
-             "p--short")
-                SUMMARY=False
-                SHORT=True
-                INTER=False
-                shift
-                ;;
-             "p--summary")
-                SUMMARY=True
-                SHORT=False
-                INTER=False
-                shift
-                ;;
-             "p--go-on")
-                GO_ON=True
-                INTER=False
-                shift
-                ;;
-             "p--silent")
-                SILENT=True
-                GO_ON=True
-                INTER=False
-                shift
-                ;;
-             *)
-                NEXTPAR=True
-                ;;
-          esac
+        ssh_or_scp_pars "$@"
+        RET=$?
+        if [ $RET -eq 0 ]
+        then
+           break
+        else
+           while [ $RET -ne 0 ]
+           do
+             shift
+             let "RET--"
+           done
+        fi
      else
-        NEXTPAR=True
+        break
      fi
  done
 
@@ -1103,12 +1128,12 @@ do
               SERVONLY=True
               shift
               ;;
-          "p--sessions-open" )
+         "p--sessions-open" )
               OPTFOUND=True
               SESSIONS_OPEN=True
               shift
               ;;
-          "p--details" )
+         "p--details" )
               OPTFOUND=True
               DETAILS=True
               MACHINE_ONLY=False
@@ -1167,7 +1192,7 @@ do
            ;;
 # ---------------------------------------------------------------------------------- Import-data
 # ---------------------------------------------------------------------------------- Import
-          "p--import-data" | "p--import")
+         "p--import-data" | "p--import")
            if [ "p$1" = "p--import" ]
            then
               IMPORT_PKG=True
@@ -1280,6 +1305,23 @@ Press Enter to import these profiles to your konsole. Or Ctrl-C to interrupt."
            OPTFOUND=True
 	   break
            ;;
+         *)
+            ssh_or_scp_pars "$@"
+            RET=$?
+            if [ ${RET} -eq 0 ]
+            then
+               NEXTPAR=True # No more flags => Break flag loop
+            fi
+            if [ ${RET} -eq -1 ]
+            then
+               exit 1
+            fi
+            while [ ${RET} -ne 0 ]
+            do
+              shift
+              let "RET--"
+            done
+            ;;
       esac
       if [ "$OPTFOUND" != True ]
       then
@@ -1287,7 +1329,7 @@ Press Enter to import these profiles to your konsole. Or Ctrl-C to interrupt."
          exit
       fi
    else
-      NEXTPAR=True
+      NEXTPAR=True # No more flags => Break flag loop
    fi
 done
 
