@@ -255,6 +255,15 @@ This will open 3 konsole windows 1 for each collection.
 
 Extra parameters:
 --version : To show out $(basename $0) script version.
+
+Optional environment variable:
+You can add the environment variable KSSH_TEST_CMD to perform connectivity tests in a simple way.
+Just type:
+  export KSSH_TEST_CMD=\"ssh\"
+Or add this environmet variable to your .bashrc file.
+
+If you don't want to add it to your environment, you can use it in the command line:
+  KSSH_TEST_CMD=\"ssh\" kssh DEV
 " | more
 }
 
