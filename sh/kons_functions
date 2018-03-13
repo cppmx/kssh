@@ -417,9 +417,96 @@ function dat_servers_list()
        echo
     fi
  else
-    cat "$CONNECTION_LIST"
+    test_connection $CONNECTION_LIST
  fi
 
+}
+
+# Name: test_connection
+#
+# Description: This function evaluates the value of the KSSH_TEST_CMD environment variable
+#              and it decides what to do with the server list.
+#
+# Params: It is expected to receive the servers list as the only parameter
+#
+# Return: None
+function test_connection()
+{
+  # Check if the test command environment variable is set
+  if [ -z "$KSSH_TEST_CMD" ]; then
+    # If not then just print the serers lits
+    cat $1
+  elif [ "$KSSH_TEST_CMD" = "ssh" ]; then
+    # If is set with the ssh value, then we only check for the SSH connection
+    exec_test_connection $1
+  else
+    # For any other value we will try to execute the remote command
+    exec_test_connection $1 $KSSH_TEST_CMD
+  fi
+}
+
+# Name: exec_test_connection
+#
+# Description: This function will test the connection via SSH to each of the servers in the list.
+#              If the second parameter is set, then it will also execute a remote command
+#              on each of the servers.
+#
+# Params:
+#        1: Servers list
+#        2: Command to test (Optional)
+#
+# Return: None
+function exec_test_connection()
+{
+  # Define colors variables
+  RED='\033[1;31m'
+  GREEN='\033[1;32m'
+  YELLOW='\033[1;33m'
+  NC='\033[0m'
+
+  # Define counter variables
+  TOT_OK=0
+  TOT_FAIL=0
+  TOT_WARN=0
+
+  # Loop through all servers in the list
+  for host in `cat $1`; do
+    # For each server let's try to test the connection 
+    if [ -z $2 ]; then
+      # If the second parameter is empty, then we only check for the SSH connection
+      ssh -q -o BatchMode=yes $host exit 2> /dev/null
+    else
+      # If the second parameter is set, then we also try to run the test command
+      echo exit | ssh -q -o BatchMode=yes $host "$KSSH_TEST_CMD" 2> /dev/null
+    fi
+
+    # Let's capture the last error
+    OUTPUT=$?
+
+    # Evaluate the last error value
+    if [[ $OUTPUT -eq 0 ]]; then
+      # If last error is zero, then everything goes fine
+      echo -e "[${GREEN}  OK  ${NC}] ${host}"
+      let TOT_OK+=1
+    elif [[ $OUTPUT -eq 1 ]]; then
+      # If last error is one, then KSSS makes a succesfull SSh conection
+      # but there is something wrong with the test command
+      echo -e "[${YELLOW} WARN ${NC}] ${host}"
+      let TOT_WARN+=1
+    else
+      # Any other value will be consider as a failure
+      echo -e "[${RED} FAIL ${NC}] ${host}"
+      let TOT_FAIL+=1
+    fi
+  done
+
+  # Finally, let's create a report
+  echo " "
+  printf "OK:      %2s\n" $TOT_OK
+  printf "Fail:    %2s\n" $TOT_FAIL
+  printf "Warning: %2s\n" $TOT_WARN
+  echo "         --"
+  printf "         %2s\n" $[TOT_OK+TOT_FAIL+TOT_WARN]
 }
 
 
