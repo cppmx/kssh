@@ -117,6 +117,70 @@ From this last command it is important to highlight the following:
 - When we want to test a remote command then the **OK message** proves that connectivity can be established and that the remote command succeeded.
 - If you are always going to be doing the same test, then you can add the KSSH_TEST_CMD variable to your environment. This way you do not have to be writing it every time you want to do a quick review of your servers.
 
+**Update verification**
+
+Now it is possible to verify if there are changes in the information of the servers every time the *KSSH* command is executed with the details parameter. Verification will be done automatically depending on the directory where the *KSSH* command is executed. If it is executed in the directory of the application repository or in one of its subdirectories, then the verification will be done. In any other directory the application will run normally.
+
+Ex.
+
+Let's consider the following tree directory.
+
+```
+home
+└── user
+    ├── Repo
+    │   ├── information
+    │   │   ├── servers
+    │   │   └── conf
+    │   └── automation
+    └── Dev
+```
+In order for the update verification to be carried out, it will be necessary for the *KSSH* command to be executed within the Repo directory, in any other directory outside of repo, the update verification will be ignored. Obviously, the update verification will also be done in any subdirectory of Repo.
+
+```bash
+/home/user/Repo $: kssh serv --details
+
+/home/user/Repo/information/conf $: kssh serv --details
+
+/home/user/Dev $: kssh serv --details
+```
+In the previous examples the update verification will be performed only in the first two cases, the last will not make any verification since it is not within the Repo directory.
+
+As an additional feature, a small functionality was added to make the *KSSH* application responsive to the size of the terminal. From now on, if the terminal has a length less than 150 columns then the information will be displayed in the form of rows instead of columns. Let's see an example:
+
+```bash
+/home/user/Repo $: kssh serv --details
+       App Class...CL_SRV
+        Category...DEV
+            Role...??
+           Locat...AAA
+          Status...release
+   Alias/comment...deploy
+Full server Name...server1.dummy.domain.org
+        Username...user
+         Profile...server1.dummy.domain.org
+-------------------------------------------------------------------------
+       App Class...CL_SRV
+        Category...DEV
+            Role...??
+           Locat...AAA
+          Status...release
+   Alias/comment...deploy
+Full server Name...server1.dummy.domain.org
+        Username...USER
+         Profile...server1.dummy.domain.org
+-------------------------------------------------------------------------
+
+	*****Update needed*****
+In the previous results you can see in red the records that contain changes and in yellow the current record in your profile.
+If you want to update then execute the command: 'kssh <Grep Filter> --update [options]'
+
+```
+
+This example shows how would look the result of an update check. Observe the comment at the end of the example, it mention that the result is shown with colors. This was done in order to detect a possible update in an easier way.
+
 # Update
 
 **03/12/2018:** Added test connection when listing servers
+
+**04/12/2018:** Added update verification

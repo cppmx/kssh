@@ -35,6 +35,19 @@ then
    exit 1
 fi
 
+# At this point we know that the application is correctly installed.
+# So we will do a second review to know if we are inside a directory
+# that contains the server's templates, or if we are in any other directory.
+REPOSITORY_PROFILES=
+for path_to_test in `find ~/ -name srv_tmpl.yml`
+do
+  TEMPVAR=$(dirname $path_to_test)
+  if stringContains $TEMPVAR $('pwd')
+  then
+    REPOSITORY_PROFILES=$TEMPVAR/services_information/servers/
+  fi
+done
+
 function Help()
 {
  echo "WARNING! This tool is better usable if you are using a private key without password or loaded by your ssh-agent. Otherwise, your will be prompted for your password, all the time.
@@ -1391,6 +1404,14 @@ then # Simple Query
       else
          awk -F"|" '{ printf "'"$OUTPUT_FORMAT"'",'"$OUTPUT_FIELDS"' }' ~/.ssh_connection.data
          echo
+      fi
+
+      if [ -f $HOME/.update_kssh ]
+      then
+        echo -e "\n\t\e[5m*****\e[101mUpdate needed\e[0m*****\e[25m
+In the previous results you can see in \e[91mred\e[0m the records that contain changes and in \e[93myellow\e[0m the current record in your profile.
+If you want to update then execute the command: $(basename $0) <Grep Filter> --update [options]\n"
+        rm $HOME/.update_kssh
       fi
    else
       dat_servers_list "$MACHINE_ONLY" ~/.ssh_connection.lst "$SEP"

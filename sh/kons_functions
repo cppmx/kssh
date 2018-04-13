@@ -262,7 +262,27 @@ function ProfileFilter()
  FILEDAT="$(echo "$1" | sed 's/\.profile$/.dat/g')"
  if [ -f "$FILEDAT" ]
  then
-    DAT="$(cat "$FILEDAT")"
+    # Check if there is a difference between user's server information and the repository information
+    check_for_updated_details $FILEDAT
+    if [ "$?" -eq "1" ]
+    then
+      # If so, then let's get the repository filename
+      REPO=$(basename $FILEDAT)
+      REPO=$REPOSITORY_PROFILES$(echo "$REPO" | sed "s/$USER/USER/g" | sed "s/USER_/USER-/g")
+
+      # and insert the repository information into the queeue
+      echo "+$(cat "$REPO")"
+      DAT="=$(cat "$FILEDAT")"
+
+      # Also it's necessary to enable the flag file
+      if [ ! -f $HOME/.update_kssh ]
+      then
+        touch $HOME/.update_kssh
+      fi
+    else
+      # If there is no changes, then let the process continue as it usually does
+      DAT="$(cat "$FILEDAT")"
+    fi
  fi
  if [ "$2" = "True" ]
  then
@@ -378,18 +398,129 @@ function sort_information()
 
 function Details_output()
 {
- awk -F'|' '
-BEGIN {
-  printf "%-10s|%8s|%-4s|%-5s|%-7s|%-70s|%30s|%12s|%7s\n","App Class" ,"Category","Role","Locat","Status","Alias/comment"                                                         ,"Full server Name"              ,"Username"    ,"Profile"
-  printf "%-10s+%8s+%-4s+%-5s+%-7s+%-70s+%30s+%12s+%7s\n","----------","--------","----","-----","------","----------------------------------------------------------------------","------------------------------","------------","-------"
+  # Get terminal width
+  COLUMNS=$(stty size | awk '{print $2}')
+
+  # We ae going to present the information in two different ways. Let's consider a minimum value of 150 columns for a small terminal window.
+  # This number is an arbirtrary number, it can be changed to whatever needs.
+  # Now, if the current terminal has less columns than this arbitrary value
+  if [ "$COLUMNS" -lt "150" ]
+  then
+    # then let's display the information in lines instead of columns
+    narrow_output $1 $COLUMNS
+  else
+    # if the terminal is grather than the arbitrary value, then let's display the information in columns
+    wide_output $1
+  fi
 }
 
-{ printf "%-10s|%8s|%-4s|%-5s|%-7s|%-70s|%30s|%12s|%7s\n",$1          ,$2        ,$3    ,$4     ,$5      ,$6                                                                      ,$7                              ,$8            ,$12 }
 
-END {
-  printf "%-10s+%8s+%-4s+%-5s+%-7s+%-70s+%30s+%12s+%7s\n","----------","--------","----","-----","------","----------------------------------------------------------------------","------------------------------","------------","-------"
+# Name: wide_output
+#
+# Description: This function display the server's infrmation in columns
+#
+# Params:
+#        1: The name of the file that contains the information that will be displayed
+#
+# Return: None
+function wide_output()
+{
+  awk -F'|' '
+  BEGIN {
+    printf "\033[97m%-10s|%8s|%-4s|%-5s|%-7s|%-70s|%30s|%12s|%7s\033[00m\n","App Class" ,"Category","Role","Locat","Status","Alias/comment"                                                         ,"Full server Name"              ,"Username"    ,"Profile"
+    printf "%-10s+%8s+%-4s+%-5s+%-7s+%-70s+%30s+%12s+%7s\n","----------","--------","----","-----","------","----------------------------------------------------------------------","------------------------------","------------","-------"
+    OFS="\n"
+  }
+  {
+    # A small modification was made here.
+    # Now its necessary to analyze each field to detect a special mark
+    if(index($1,"=")==1)         # An equal sign (=) means that the user information needs to be updated
+    {
+      sub(/=/,"",$1)             # So remove that character from the string and print the information in yellow color
+      printf "\033[93m%-10s|%8s|%-4s|%-5s|%-7s|%-70s|%30s|%12s|%7s\033[00m\n",$1          ,$2        ,$3    ,$4     ,$5      ,$6                                                                      ,$7                              ,$8            ,$12
+    } else if(index($1,"+")==1)  # A plus sign (+) means that the repository information has different information than the user profile
+    {
+      sub(/+/,"",$1)             # So remove that character from the string and print the information in red color
+      printf "\033[91m%-10s|%8s|%-4s|%-5s|%-7s|%-70s|%30s|%12s|%7s\033[00m\n",$1,$2,$3,$4,$5,$6,$7,$8,$12
+    }
+    else                         # If no special character was found, then print the information as usual
+      printf "%-10s|%8s|%-4s|%-5s|%-7s|%-70s|%30s|%12s|%7s\n",$1          ,$2        ,$3    ,$4     ,$5      ,$6                                                                      ,$7                              ,$8            ,$12
+  }
+  END {
+    printf "%-10s+%8s+%-4s+%-5s+%-7s+%-70s+%30s+%12s+%7s\n","----------","--------","----","-----","------","----------------------------------------------------------------------","------------------------------","------------","-------"
+  }' "$1"
 }
-' "$1"
+
+# Name: narrow_output
+#
+# Description: This function display the server's infrmation row by row
+#
+# Params:
+#        1: The name of the file that contains the information that will be displayed
+#        : The number of columns of the current terminal window
+#
+# Return: None
+function narrow_output()
+{
+  awk -F'|' -v lenght=$2 '
+  # Name: repeat
+  #
+  # Description: This function creates a text string by repeating a character N times
+  #
+  # Params:
+  #        1: The character or the string that will be used as base
+  #        2: The number of repetitions
+  #        3: (Optional) A variable to receive the result
+  #        4: (Optional) A position to start the repetitions
+  #
+  # Return: A string
+  function repeat( str, n, rep, i )
+  {
+    for( ; i<n; i++ )
+        rep = rep str   
+    return rep
+  }
+
+  BEGIN {
+    # Create an array with the names of the rows
+    split("App Class,Category,Role,Locat,Status,Alias/comment,Full server Name,Username,Profile", titles, ",")
+
+    # We are going to use the new line character as output final separator
+    OFS="\n"
+  }
+  {
+    update=0  # A flag for for to know when an update is present in data
+
+    # This FOR loop will go through all the fields
+    for(i=1;i<=NF;i++)
+    {
+      if(i==1) # If this is the first field
+      {
+        # Then check for a special character at the beggining of the string
+        update=index($i,"=")    # An equal sign (=) means that the user information needs to be updated
+                                # The update flag will save the result of this check.
+        if(update==1)           # So, if the eual sign is present
+          sub(/=/,"",$i)        # then remove that sign from the string
+        else if(index($i,"+"))  # If a plus sign (+) is present at the beggining of the string
+        {                       # That means that the repository nformation is different that the user
+          sub(/+/,"",$i)        # Soremove that character from the string
+          update=2              # and set the update flag to a propper value
+        }
+
+        # If none of the above conditions were met, then the update flag will have a value of zero at this point.
+      }
+
+      # Now lets analyze what and how we should show the information
+      if(i<10 && update == 1)       # Lets print in yellow all the user server profile if an update is needed
+        printf "\033[97m%16s...\033[93m%s\033[00m\n",titles[i],$i
+      else if(i<10 && update == 2)  # Lets print in red all the repository information if an update is needed
+        printf "\033[97m%16s...\033[91m%s\033[00m\n",titles[i],$i
+      else if(i<10 && update == 0)  # If no update is needed, then print in normal color
+        printf "\033[97m%16s...\033[00m%s\n",titles[i],$i
+      else if(i==10)                # At the end lets print a dashed line
+        printf "\033[96m%s\033[00m\n", repeat("-", lenght)
+    }
+  }' "$1"
 }
 
 function dat_servers_list()
@@ -1013,3 +1144,47 @@ function ssh_show()
  fi
  cd ~
 }
+
+# Name: stringContains
+#
+# Description: This function compares two strings to evaluate
+#              if one string contains the other string
+#
+# Params:
+#        1: String to compare
+#        2: String to test
+#
+# Return: True if string1 contains string2
+stringContains() { [ -z "${2##*$1*}" ]; }
+
+# Name: check_for_updated_details
+#
+# Description: This function check if the user's server information is the same as the server information in the repository file
+#
+# Params:
+#        1: User server file name
+#
+# Return: 0 if user and repository information are the same, 1 otherwise
+function check_for_updated_details()
+{
+  RESULT=0
+
+  if [ -d $REPOSITORY_PROFILES ]; then
+    USER_SRV_FILE=$1
+    REPO_SRV_FILE=$(basename $USER_SRV_FILE)
+    REPO_SRV_FILE=$REPOSITORY_PROFILES$(echo "$REPO_SRV_FILE" | sed "s/$USER/USER/g" | sed "s/USER_/USER-/g")
+
+    if [ -f $REPO_SRV_FILE ]; then
+      USER_DATA=$(cat $USER_SRV_FILE | sed "s/$USER/USER/g" | sed "s/USER_/USER-/g")
+      REPO_DATA=$(cat $REPO_SRV_FILE)
+
+      if [ "$USER_DATA" != "$REPO_DATA" ]
+      then
+        RESULT=1
+      fi
+    fi
+  fi
+
+  return $RESULT
+}
+
