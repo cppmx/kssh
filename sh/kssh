@@ -39,13 +39,24 @@ fi
 # So we will do a second review to know if we are inside a directory
 # that contains the server's templates, or if we are in any other directory.
 REPOSITORY_PROFILES=
-for path_to_test in `find ~/ -name srv_tmpl.yml`
+CURRENT_DIR=$(pwd)
+for (( ; ; ))
 do
-  TEMPVAR=$(dirname $path_to_test)
-  if stringContains $TEMPVAR $('pwd')
-  then
-    REPOSITORY_PROFILES=$TEMPVAR/services_information/servers/
+  # Let's check if the reference file is in the current directory
+  if [[ -f $CURRENT_DIR/srv_tmpl.yml ]]; then
+    # If so, then assign that directory in the propper variable
+    REPOSITORY_PROFILES=$CURRENT_DIR/$(grep servers_path: $CURRENT_DIR/srv_tmpl.yml | cut -d' ' -f2)/
+    # and exit the loop
+    break
+
+  # Let's check if we have reached the home directory
+  elif [[ "$CURRENT_DIR" == "$HOME" ]]; then
+    # If so, then break the loop
+    break
   fi
+
+  # At this point, we need to move back one level
+  CURRENT_DIR=$(dirname $CURRENT_DIR)
 done
 
 function Help()
