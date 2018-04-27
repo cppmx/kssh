@@ -45,7 +45,7 @@ do
   # Let's check if the reference file is in the current directory
   if [[ -f $CURRENT_DIR/srv_tmpl.yml ]]; then
     # If so, then assign that directory in the propper variable
-    REPOSITORY_PROFILES=$CURRENT_DIR/services_information/servers/
+    REPOSITORY_PROFILES=$CURRENT_DIR/$(grep servers_path: $CURRENT_DIR/srv_tmpl.yml | cut -d' ' -f2)/
     # and exit the loop
     break
 
